@@ -27,6 +27,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   {
+    // Headless-browser scripts run under Node and evaluate code inside the page.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'vue/multi-word-component-names': 'off',
