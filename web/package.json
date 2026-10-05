@@ -3,12 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Vue 3 SPA — provider screens in Cerbo chart idiom, patient checkout in portal style",
+  "description": "Vue 3 SPA \u2014 provider screens in Cerbo chart idiom, patient checkout in portal style",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vue-tsc --noEmit -p tsconfig.app.json && vite build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "pinia": "^3.0.3",
@@ -19,6 +20,7 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "typescript": "^5.9.3",
     "vite": "^7.1.0",
+    "vitest": "^3.2.7",
     "vue-tsc": "^3.1.0"
   }
 }

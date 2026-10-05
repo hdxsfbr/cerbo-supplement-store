@@ -15,11 +15,13 @@ const props = withDefaults(
     feeMemo?: string;
     title?: string;
     compact?: boolean;
+    marginLabel?: string;
   }>(),
   {
     feeBps: 75,
     title: 'Money split',
     compact: false,
+    marginLabel: 'Provider margin (after fee)',
   },
 );
 
@@ -62,7 +64,9 @@ const invariantHolds = computed(
           </td>
         </tr>
         <tr>
-          <td><strong>Provider margin</strong></td>
+          <td>
+            <strong>{{ marginLabel }}</strong>
+          </td>
           <td class="cerbo-table__num">
             <span
               class="cerbo-money"

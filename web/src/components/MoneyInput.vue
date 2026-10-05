@@ -4,12 +4,14 @@ import { ref, watch } from 'vue';
 import { formatCents, parseCentsInput } from '../money';
 
 const model = defineModel<number | null>();
+const emit = defineEmits<{ (e: 'validity', valid: boolean): void }>();
 
 const props = withDefaults(
   defineProps<{
     disabled?: boolean;
     placeholder?: string;
     id?: string;
+    ariaLabel?: string;
   }>(),
   {
     disabled: false,
@@ -45,17 +47,21 @@ function onInput(event: Event): void {
   raw.value = text;
 
   if (text.trim() === '') {
-    invalid.value = false;
-    model.value = null;
+    // A price is required: an empty field is reported invalid (HDX-85) but the last valid
+    // model value is left alone so nothing is silently substituted.
+    invalid.value = true;
+    emit('validity', false);
     return;
   }
 
   const parsed = parseCentsInput(text);
   if (parsed === null) {
     invalid.value = true;
+    emit('validity', false);
     return;
   }
   invalid.value = false;
+  emit('validity', true);
   model.value = parsed;
 }
 
@@ -72,11 +78,13 @@ function onBlur(): void {
     <input
       :id="props.id"
       class="cerbo-input cerbo-money-input__field"
+      :class="{ 'cerbo-money-input__field--invalid': invalid }"
       type="text"
       inputmode="decimal"
       :placeholder="props.placeholder"
       :disabled="props.disabled"
       :aria-invalid="invalid"
+      :aria-label="props.ariaLabel"
       :value="raw"
       @input="onInput"
       @focus="onFocus"
@@ -86,6 +94,10 @@ function onBlur(): void {
 </template>
 
 <style scoped>
+.cerbo-money-input__field--invalid {
+  border-color: var(--cerbo-charge) !important;
+  background: #fff5f5;
+}
 .cerbo-money-input {
   display: inline-flex;
   align-items: center;

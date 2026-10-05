@@ -17,7 +17,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "npm test --workspace server",
+    "test": "npm test --workspace server && npm test --workspace web",
     "test:integration": "npm run test:integration --workspace server",
     "build": "npm run build --workspace web && npm run build --workspace server"
   },

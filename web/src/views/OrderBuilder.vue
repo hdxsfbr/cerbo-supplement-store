@@ -67,7 +67,6 @@ watch(
 // ── Debounced persistence: local edits → PUT /items ──────────────────────────────────────
 let timer: ReturnType<typeof setTimeout> | null = null;
 function scheduleSave(): void {
-  draft.touch();
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => void draft.save(), 400);
 }
@@ -94,14 +93,19 @@ function addSelected(): void {
 
 function onQuantity(line: DraftLine, e: Event): void {
   const n = Number((e.target as HTMLInputElement).value);
-  line.quantity = Number.isInteger(n) && n > 0 ? n : 1;
+  draft.setQuantity(line.supplement_id, Number.isInteger(n) && n > 0 ? n : 1);
   scheduleSave();
 }
 
 function onPrice(line: DraftLine, cents: number | null | undefined): void {
   if (cents === null || cents === undefined) return;
-  line.unit_price_cents = cents;
+  draft.setPrice(line.supplement_id, cents);
   scheduleSave();
+}
+
+function onPriceValidity(line: DraftLine, valid: boolean): void {
+  draft.setPriceValidity(line.supplement_id, valid);
+  if (valid) scheduleSave();
 }
 
 /** Spec US1 scenario 2: set a margin % instead of a price; the price is derived. */
@@ -110,7 +114,7 @@ function onMarginPercent(line: DraftLine, e: Event): void {
   if (!Number.isFinite(pct) || pct < 0 || pct >= 100) return;
   const price = priceForMarginBps(line.unit_cogs_cents, Math.round(pct * 100));
   if (price === null) return;
-  line.unit_price_cents = price;
+  draft.setPrice(line.supplement_id, price);
   scheduleSave();
 }
 
@@ -149,9 +153,11 @@ const split = computed(() => (draft.dirty || !draft.order ? draft.preview : draf
 const feeMemo = computed(() =>
   !draft.dirty && draft.order ? draft.order.split.memos.platform_fee : undefined,
 );
-const belowCogsCount = computed(
-  () => draft.lines.filter((l) => l.unit_price_cents < l.unit_cogs_cents).length,
+const belowCogsLines = computed(() =>
+  draft.lines.filter((l) => l.unit_price_cents < l.unit_cogs_cents).map((l) => l.name),
 );
+/** Order-level: provider margin AFTER the platform fee can be negative even with no below-cost line. */
+const netMarginNegative = computed(() => split.value.margin_cents < 0);
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '';
@@ -239,9 +245,13 @@ function fmtDate(iso: string | null): string {
                 <th class="cerbo-table__num">Qty</th>
                 <th class="cerbo-table__num">Unit COGS</th>
                 <th class="cerbo-table__num">Patient price</th>
-                <th class="cerbo-table__num">Margin %</th>
+                <th class="cerbo-table__num" title="Gross margin on price, before the platform fee">
+                  Gross margin %
+                </th>
                 <th class="cerbo-table__num">Line total</th>
-                <th class="cerbo-table__num">Line margin</th>
+                <th class="cerbo-table__num" title="Line price minus COGS, before the platform fee">
+                  Gross line margin
+                </th>
                 <th v-if="!draft.locked"></th>
               </tr>
             </thead>
@@ -275,8 +285,13 @@ function fmtDate(iso: string | null): string {
                     v-if="!draft.locked"
                     :id="`price-${line.supplement_id}`"
                     :model-value="line.unit_price_cents"
+                    :aria-label="`Patient price for ${line.name}`"
                     @update:model-value="onPrice(line, $event)"
+                    @validity="onPriceValidity(line, $event)"
                   />
+                  <div v-if="!line.price_valid" class="ob__field-error">
+                    Enter a dollar amount (e.g. 32.00)
+                  </div>
                   <span v-else class="cerbo-money">{{ formatCents(line.unit_price_cents) }}</span>
                 </td>
                 <td class="cerbo-table__num">
@@ -322,9 +337,18 @@ function fmtDate(iso: string | null): string {
             line.
           </p>
 
-          <p v-if="belowCogsCount" class="ob__warn">
-            {{ belowCogsCount }} line(s) priced below cost — the provider margin will be negative.
-            Allowed, but check it is intended.
+          <p v-if="belowCogsLines.length" class="ob__warn">
+            Priced below cost: {{ belowCogsLines.join(', ') }} — gross margin on
+            {{ belowCogsLines.length === 1 ? 'that line is' : 'those lines is' }} negative. Allowed,
+            but check it is intended.
+          </p>
+          <p v-if="draft.order && netMarginNegative" class="ob__warn">
+            Order net margin is negative: after the {{ PLATFORM_FEE_BPS }} bps platform fee the
+            provider margin is {{ formatCents(split.margin_cents) }}.
+          </p>
+          <p v-if="draft.invalidLineCount" class="ob__warn">
+            {{ draft.invalidLineCount }} price field(s) need a valid dollar amount before this order
+            can be saved or sent.
           </p>
           <p v-if="draft.error" class="ob__error">{{ draft.error }}</p>
         </CerboPanel>
@@ -386,6 +410,7 @@ function fmtDate(iso: string | null): string {
             :margin-cents="split.margin_cents"
             :fee-memo="feeMemo"
             title="Where every cent goes"
+            margin-label="Provider margin (after fee)"
             compact
           />
           <p v-if="draft.dirty" class="cerbo-muted ob__hint">
@@ -396,13 +421,16 @@ function fmtDate(iso: string | null): string {
             <button
               v-if="draft.order && !draft.locked"
               class="cerbo-btn cerbo-btn--primary ob__send-btn"
-              :disabled="draft.lines.length === 0 || draft.sending"
+              :disabled="!draft.canSend"
               @click="sendOrder"
             >
               {{ draft.sending ? 'Sending…' : 'Send to patient for payment' }}
             </button>
             <p v-if="draft.order && !draft.locked && draft.lines.length === 0" class="cerbo-muted">
               Add at least one supplement to send.
+            </p>
+            <p v-else-if="draft.order && !draft.locked && !draft.allValid" class="cerbo-muted">
+              Fix the highlighted price field(s) to send.
             </p>
           </div>
 
@@ -515,6 +543,11 @@ function fmtDate(iso: string | null): string {
   color: var(--cerbo-charge);
   font-weight: 700;
   margin: 8px 0 0;
+}
+.ob__field-error {
+  color: var(--cerbo-charge);
+  font-size: 11px;
+  text-align: right;
 }
 .ob__hint {
   margin: 4px 0 0;
