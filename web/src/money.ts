@@ -23,6 +23,7 @@ export function formatCents(cents: number, opts: FormatCentsOptions = {}): strin
   const remainder = String(abs % 100).padStart(2, '0');
   const magnitude = `$${dollars}.${remainder}`;
 
+  if (sign === 'never') return magnitude;
   if (isNegative) {
     if (parens) return `(${magnitude})`;
     return `-${magnitude}`;
