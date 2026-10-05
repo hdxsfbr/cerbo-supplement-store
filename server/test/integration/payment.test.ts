@@ -276,6 +276,15 @@ describe('the database, not the app, is the last line of defence (quickstart sce
     expect(code).toBe('23505'); // UNIQUE (order_id, entry_type); the deferred trigger would catch a novel type too
   });
 
+  it('TRUNCATE on order_items / orders / payments is refused (HDX-87)', async () => {
+    expect(await sqlCode(() => ctx.sql`TRUNCATE order_items`)).toBe('CB003');
+    expect(await sqlCode(() => ctx.sql`TRUNCATE orders CASCADE`)).toBe('CB003');
+    expect(await sqlCode(() => ctx.sql`TRUNCATE payments CASCADE`)).toBe('CB003');
+    const [row] = await ctx.sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM order_items WHERE order_id = ${paidId}`;
+    expect(row!.n).toBe(1); // the paid order's lines are still there
+  });
+
   it('a paid order and its items are immutable (CB003)', async () => {
     expect(
       await sqlCode(() => ctx.sql`UPDATE orders SET total_cents = 1 WHERE id = ${paidId}`),
