@@ -3,6 +3,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { api, createTestContext, type TestContext } from './helpers.js';
+import { dashboardPaidOrders, dashboardTotals } from '../../src/routes/dashboard.js';
 
 let ctx: TestContext;
 beforeAll(async () => {
@@ -103,6 +104,53 @@ describe('dashboard summary (T022)', () => {
     });
     const adrenal = res.body.inventory.find((s: { sku: string }) => s.sku === 'ADR-SUP-120'); // seeded at 20
     expect(adrenal).toMatchObject({ inventory_count: 20, low: true, negative: false });
+  });
+});
+
+describe('consistent snapshot (HDX-86)', () => {
+  it('a payment committed between the totals read and the paid-orders read is invisible to both', async () => {
+    // Set up a sent-but-unpaid order; we will pay it from OUTSIDE the read transaction mid-way.
+    const created = await api(ctx.app, 'POST', '/api/orders', {
+      provider: ANDERSON,
+      body: { patient_id: 5 },
+    });
+    await api(ctx.app, 'PUT', `/api/orders/${created.body.id}/items`, {
+      provider: ANDERSON,
+      body: { items: [{ supplement_id: 3, quantity: 1, unit_price_cents: 1900 }] },
+    });
+    const sent = await api(ctx.app, 'POST', `/api/orders/${created.body.id}/send`, {
+      provider: ANDERSON,
+    });
+    const token = sent.body.checkout_url.split('/pay/')[1] as string;
+
+    const before = await dashboardTotals(ctx.sql, ANDERSON);
+
+    const seen = await ctx.sql.begin('isolation level repeatable read read only', async (tx) => {
+      const totals = await dashboardTotals(tx, ANDERSON); // establishes the snapshot
+      // Commit a payment on another connection while this transaction is open.
+      const paid = await api(ctx.app, 'POST', `/api/checkout/${token}/pay`, {
+        body: { idempotency_key: `snap_${created.body.id}_xxxxxxx` },
+      });
+      expect(paid.status).toBe(200);
+      const rows = await dashboardPaidOrders(tx, ANDERSON);
+      return { totals, rows };
+    });
+
+    // Inside the snapshot: both reads agree with each other and with the pre-payment state.
+    expect(seen.totals).toEqual(before);
+    expect(seen.rows.map((r) => r.id)).not.toContain(created.body.id);
+    expect(seen.rows.reduce((s, r) => s + r.total_cents, 0)).toBe(seen.totals.gross_cents);
+
+    // After the snapshot: the route sees the new payment in both places at once.
+    const after = await api(ctx.app, 'GET', '/api/dashboard/summary', { provider: ANDERSON });
+    expect(after.body.orders_paid).toBe(before.orders_paid + 1);
+    expect(after.body.paid_orders.map((o: { id: number }) => o.id)).toContain(created.body.id);
+    expect(
+      after.body.paid_orders.reduce(
+        (s: number, o: { total_cents: number }) => s + o.total_cents,
+        0,
+      ),
+    ).toBe(after.body.gross_cents);
   });
 });
 
