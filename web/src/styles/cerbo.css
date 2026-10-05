@@ -1,0 +1,304 @@
+/*
+ * Cerbo provider-surface design tokens + base classes (T014).
+ *
+ * This is the "lives inside the EHR" chrome for provider-facing screens (order builder,
+ * dashboard): dark charcoal page, dense white chart-style panels with colored header bars,
+ * zebra tables, old-school rectangular buttons/tabs. Patient-facing checkout intentionally
+ * does NOT use this file (constitution VI: two surfaces, two design languages).
+ *
+ * Source of the look: docs/cerbo-ui-reference/DESIGN-NOTES.md and the screenshots alongside it.
+ * Plain CSS, no framework — custom properties + BEM-ish classes prefixed `cerbo-`.
+ */
+
+:root {
+  /* Page chrome */
+  --cerbo-bg: #2b2d31;
+  --cerbo-panel-bg: #ffffff;
+  --cerbo-panel-border: #d7d7d7;
+  --cerbo-nav-bg: #1c1d20;
+  --cerbo-nav-fg: #e8e8e8;
+  --cerbo-nav-active: #e0a500;
+
+  /* Panel header palette (DESIGN-NOTES.md) */
+  --cerbo-header-green: #3f7d3f;
+  --cerbo-header-maroon: #6b1f24;
+  --cerbo-header-navy: #1f3a5f;
+  --cerbo-header-black: #1a1a1a;
+  --cerbo-header-purple: #6a2e6a;
+  --cerbo-header-orange: #b35c00;
+  --cerbo-header-amber: #c9a000;
+  --cerbo-header-gray: #555861;
+  --cerbo-header-fg: #ffffff;
+
+  /* Content colors */
+  --cerbo-zebra: #f2f2f2;
+  --cerbo-charge: #a6261b;
+  --cerbo-credit: #2e7d4f;
+  --cerbo-link: #2a5ca8;
+  --cerbo-muted: #7a7a7a;
+  --cerbo-text: #1e1e1e;
+  --cerbo-warn-bg: #f3a93b;
+  --cerbo-warn-fg: #4a3100;
+
+  /* Type + spacing */
+  --cerbo-font: Lato, Helvetica, Arial, sans-serif;
+  --cerbo-font-size: 13px;
+  --cerbo-font-size-sm: 11px;
+  --cerbo-space-1: 2px;
+  --cerbo-space-2: 4px;
+  --cerbo-space-3: 8px;
+  --cerbo-space-4: 12px;
+  --cerbo-space-5: 16px;
+}
+
+/* ---------------------------------------------------------------------- Page & nav ---- */
+
+.cerbo-page {
+  min-height: 100vh;
+  background: var(--cerbo-bg);
+  color: var(--cerbo-text);
+  font-family: var(--cerbo-font);
+  font-size: var(--cerbo-font-size);
+}
+
+.cerbo-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--cerbo-space-4);
+  background: var(--cerbo-nav-bg);
+  color: var(--cerbo-nav-fg);
+  padding: var(--cerbo-space-3) var(--cerbo-space-4);
+  font-size: var(--cerbo-font-size);
+}
+
+.cerbo-nav__item {
+  padding: var(--cerbo-space-2) var(--cerbo-space-1);
+  border-bottom: 2px solid transparent;
+  color: var(--cerbo-nav-fg);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cerbo-nav__item--active {
+  border-bottom-color: var(--cerbo-nav-active);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------------- Panels ---- */
+
+.cerbo-panel {
+  background: var(--cerbo-panel-bg);
+  border: 1px solid var(--cerbo-panel-border);
+  margin-bottom: var(--cerbo-space-4);
+}
+
+.cerbo-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cerbo-space-3);
+  padding: var(--cerbo-space-3) var(--cerbo-space-4);
+  color: var(--cerbo-header-fg);
+  font-weight: 700;
+  font-size: var(--cerbo-font-size);
+}
+
+.cerbo-panel__header--green {
+  background: var(--cerbo-header-green);
+}
+.cerbo-panel__header--maroon {
+  background: var(--cerbo-header-maroon);
+}
+.cerbo-panel__header--navy {
+  background: var(--cerbo-header-navy);
+}
+.cerbo-panel__header--black {
+  background: var(--cerbo-header-black);
+}
+.cerbo-panel__header--purple {
+  background: var(--cerbo-header-purple);
+}
+.cerbo-panel__header--orange {
+  background: var(--cerbo-header-orange);
+}
+.cerbo-panel__header--amber {
+  background: var(--cerbo-header-amber);
+  color: var(--cerbo-text);
+}
+.cerbo-panel__header--gray {
+  background: var(--cerbo-header-gray);
+}
+
+.cerbo-panel__body {
+  padding: var(--cerbo-space-4);
+}
+
+.cerbo-panel__footer {
+  padding: var(--cerbo-space-2) var(--cerbo-space-4);
+  border-top: 1px solid var(--cerbo-panel-border);
+  color: var(--cerbo-muted);
+  font-size: var(--cerbo-font-size-sm);
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------------- Tabs ---- */
+
+.cerbo-tabs {
+  display: flex;
+  background: var(--cerbo-header-maroon);
+}
+
+.cerbo-tab {
+  padding: var(--cerbo-space-2) var(--cerbo-space-4);
+  color: #f1d9da;
+  font-size: var(--cerbo-font-size);
+  font-weight: 600;
+  cursor: pointer;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.cerbo-tab--active {
+  background: var(--cerbo-panel-bg);
+  color: var(--cerbo-header-maroon);
+}
+
+/* ---------------------------------------------------------------------- Tables ---- */
+
+.cerbo-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--cerbo-font-size);
+}
+
+.cerbo-table th {
+  text-align: left;
+  font-size: var(--cerbo-font-size-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--cerbo-muted);
+  padding: var(--cerbo-space-2) var(--cerbo-space-3);
+  border-bottom: 1px solid var(--cerbo-panel-border);
+}
+
+.cerbo-table td {
+  padding: var(--cerbo-space-2) var(--cerbo-space-3);
+  border-bottom: 1px solid var(--cerbo-panel-border);
+}
+
+.cerbo-table tbody tr:nth-child(even) {
+  background: var(--cerbo-zebra);
+}
+
+.cerbo-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------- Money ---- */
+
+.cerbo-money {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cerbo-money--charge {
+  color: var(--cerbo-charge);
+}
+
+.cerbo-money--credit {
+  color: var(--cerbo-credit);
+}
+
+.cerbo-balance {
+  text-align: center;
+  font-weight: 700;
+  color: var(--cerbo-charge);
+  font-size: 1.1em;
+  padding: var(--cerbo-space-3) 0;
+}
+
+/* ---------------------------------------------------------------------- Buttons & inputs ---- */
+
+.cerbo-btn {
+  font-family: var(--cerbo-font);
+  font-size: var(--cerbo-font-size);
+  padding: var(--cerbo-space-2) var(--cerbo-space-4);
+  border: 1px solid var(--cerbo-panel-border);
+  border-radius: 2px;
+  background: #eceff1;
+  color: var(--cerbo-text);
+  cursor: pointer;
+}
+
+.cerbo-btn:hover {
+  filter: brightness(0.97);
+}
+
+.cerbo-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cerbo-btn--primary {
+  background: var(--cerbo-header-navy);
+  border-color: var(--cerbo-header-navy);
+  color: #ffffff;
+}
+
+.cerbo-btn--danger {
+  background: var(--cerbo-header-maroon);
+  border-color: var(--cerbo-header-maroon);
+  color: #ffffff;
+}
+
+.cerbo-input,
+.cerbo-select {
+  font-family: var(--cerbo-font);
+  font-size: var(--cerbo-font-size);
+  padding: var(--cerbo-space-2) var(--cerbo-space-3);
+  border: 1px solid var(--cerbo-panel-border);
+  border-radius: 2px;
+  background: #ffffff;
+  color: var(--cerbo-text);
+}
+
+.cerbo-input:focus,
+.cerbo-select:focus {
+  outline: 2px solid var(--cerbo-header-navy);
+  outline-offset: -1px;
+}
+
+.cerbo-input[aria-invalid='true'] {
+  border-color: var(--cerbo-charge);
+  outline-color: var(--cerbo-charge);
+}
+
+/* ---------------------------------------------------------------------- Misc ---- */
+
+.cerbo-chip--warn {
+  display: inline-block;
+  background: var(--cerbo-warn-bg);
+  color: var(--cerbo-warn-fg);
+  font-size: var(--cerbo-font-size-sm);
+  font-weight: 700;
+  padding: var(--cerbo-space-1) var(--cerbo-space-2);
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.cerbo-link {
+  color: var(--cerbo-link);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cerbo-link:hover {
+  text-decoration: underline;
+}
+
+.cerbo-muted {
+  color: var(--cerbo-muted);
+  font-size: var(--cerbo-font-size-sm);
+}
