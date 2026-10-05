@@ -12,7 +12,8 @@
     "migrate": "tsx src/db/migrate.ts",
     "test": "vitest run --project unit --passWithNoTests",
     "test:integration": "vitest run --project integration --passWithNoTests",
-    "test:all": "vitest run"
+    "test:all": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.include='src/**'"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "tsx": "^4.20.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

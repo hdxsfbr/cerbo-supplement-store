@@ -61,11 +61,20 @@ function receipt(loaded: LoadedOrder, payment: PaymentRow | null) {
 }
 
 export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
-  const { sql, gateway } = app.deps;
+  const { sql, gateway, identity } = app.deps;
+
+  // The capability token → order/patient mapping goes through the identity seam, so swapping
+  // in a portal session or signed link touches identity.ts only, not these routes.
+  const resolveToken = async (token: string) => {
+    const who = await identity.resolveCheckout(token);
+    if (!who) throw notFound('Checkout link');
+    return who;
+  };
 
   // GET /api/checkout/:token — what the patient sees (items + prices; never COGS/margin)
   app.get<{ Params: { token: string } }>('/api/checkout/:token', async (req) => {
-    const loaded = await loadOrder(sql, { checkout_token: req.params.token });
+    const who = await resolveToken(req.params.token);
+    const loaded = await loadOrder(sql, { id: who.orderId });
     if (!loaded) throw notFound('Checkout link');
     const payment = loaded.order.status === 'paid' ? await loadPayment(sql, loaded.order.id) : null;
     return receipt(loaded, payment);
@@ -74,12 +83,12 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/checkout/:token/pay — confirm the (simulated) payment; record the split
   app.post<{ Params: { token: string } }>('/api/checkout/:token/pay', async (req) => {
     const { idempotency_key } = parse(payBody, req.body);
-    const token = req.params.token;
+    const who = await resolveToken(req.params.token);
 
     const result = await sql.begin(async (tx) => {
       // Serialise concurrent pay attempts on this order.
       const [lock] = await tx<{ id: number; status: string; total_cents: number | null }[]>`
-        SELECT id, status, total_cents FROM orders WHERE checkout_token = ${token} FOR UPDATE`;
+        SELECT id, status, total_cents FROM orders WHERE id = ${who.orderId} FOR UPDATE`;
       if (!lock) throw notFound('Checkout link');
 
       const existing = await loadPayment(tx, lock.id);
