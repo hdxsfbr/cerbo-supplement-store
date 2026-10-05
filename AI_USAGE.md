@@ -40,8 +40,9 @@ over polish: this records where AI helped, where it misled, and where a human ov
   to `^10.1.5` before first commit rather than after.
 - **Environment quirk (human context AI lacked):** local port 3000 was already bound by an
   unrelated container; `API_PORT` / `WEB_PORT` are env-overridable in compose for that reason.
-- **Linear:** the Linear MCP connector is not exposed in this session, so status updates are
-  batched for the human at each hard stop instead of being pushed live.
+- **Linear:** the connector was unavailable for the first part of the session, so Phase 1–2
+  statuses were pushed in one batch at the Phase 2 stop once it came online; from Phase 3 on they
+  move live as tasks start/finish.
 - **T002/T003** compose + Makefile + CI written hands-on (small config, not worth a subagent).
   Compose runs the API/web from the `node:22-alpine` image with a bind mount so there is no dev
   Dockerfile to keep in sync; the production multi-stage `Dockerfile` arrives in T024.
