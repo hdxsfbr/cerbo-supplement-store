@@ -8,6 +8,8 @@ import { z } from 'zod';
 import { idParam, parse, requireProvider } from '../app.js';
 import { HttpError, notFound, orderLocked } from '../errors.js';
 import { loadOrder, providerOrderView } from '../orders/load.js';
+import { PLATFORM_FEE_BPS, exactFeeDecimal } from '../money/split.js';
+import { loadPayment } from './checkout.js';
 
 const createOrderBody = z.object({ patient_id: z.number().int().positive() });
 
@@ -108,6 +110,52 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
       checkoutUrl: result.checkout_url!,
     });
     return result;
+  });
+
+  // GET /api/orders/:id/ledger — audit view of a paid order: every cent, straight from the ledger
+  app.get<{ Params: { id: string } }>('/api/orders/:id/ledger', async (req) => {
+    const provider = await requireProvider(req);
+    const id = idParam(req.params.id);
+    const loaded = await loadOrder(sql, { id, provider_id: provider.id });
+    if (!loaded) throw notFound('Order');
+    if (loaded.order.status !== 'paid' || loaded.order.total_cents === null) {
+      throw new HttpError(409, 'order_not_paid', 'Ledger exists only for paid orders');
+    }
+    const payment = await loadPayment(sql, id);
+    const entries = await sql<
+      {
+        id: number;
+        entry_type: string;
+        amount_cents: number;
+        memo: string | null;
+        created_at: string;
+      }[]
+    >`
+      SELECT id, entry_type, amount_cents, memo, created_at
+      FROM ledger_entries WHERE order_id = ${id}
+      ORDER BY array_position(ARRAY['cogs','provider_margin','platform_fee'], entry_type)`;
+    const total = loaded.order.total_cents;
+    const feeEntry = entries.find((e) => e.entry_type === 'platform_fee');
+    const view = providerOrderView(loaded, publicWebOrigin);
+    return {
+      order_id: id,
+      status: loaded.order.status,
+      patient: view.patient,
+      provider: view.provider,
+      total_cents: total,
+      paid_at: loaded.order.paid_at,
+      payment,
+      entries,
+      sum_cents: entries.reduce((s, e) => s + e.amount_cents, 0),
+      fee_computation: {
+        total_cents: total,
+        fee_bps: PLATFORM_FEE_BPS,
+        exact: exactFeeDecimal(total),
+        rounding: 'half-up',
+        fee_cents: feeEntry?.amount_cents ?? null,
+      },
+      items: view.items,
+    };
   });
 
   // GET /api/orders — the acting provider's orders, newest first

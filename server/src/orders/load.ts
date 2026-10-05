@@ -2,7 +2,7 @@
 // and the patient checkout routes (checkout.ts). The split is computed from the lines on every
 // read; for paid orders the ledger (system of record) is guaranteed equal by the DB invariant.
 
-import type { Db } from '../db/client.js';
+import type { Queryable } from '../db/client.js';
 import { PLATFORM_FEE_BPS, computeSplit, type Split } from '../money/split.js';
 import type { OrderStatus } from '../types.js';
 
@@ -38,7 +38,7 @@ export interface LoadedOrder {
 }
 
 export async function loadOrder(
-  sql: Db,
+  sql: Queryable,
   where: { id: number; provider_id?: number } | { checkout_token: string },
 ): Promise<LoadedOrder | null> {
   const base = sql`

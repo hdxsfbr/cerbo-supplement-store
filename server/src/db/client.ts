@@ -7,9 +7,11 @@
 //    throw rather than silently lose precision. Cent totals in this system are nowhere near
 //    2^53, so this is a tripwire, not an expected path.
 
-import postgres, { type Sql } from 'postgres';
+import postgres, { type Sql, type TransactionSql } from 'postgres';
 
 export type Db = Sql;
+/** Anything you can run a query on: the pool or a transaction handle. */
+export type Queryable = Sql | TransactionSql;
 
 export function parseBigintColumn(text: string): number {
   const n = Number(text);

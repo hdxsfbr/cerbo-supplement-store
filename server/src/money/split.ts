@@ -52,7 +52,7 @@ export function platformFeeCents(totalCents: Cents): Cents {
 }
 
 /** Exact decimal rendering of (totalCents × bps / 10000) without floats, e.g. "54.375". */
-function exactFeeDecimal(totalCents: Cents): string {
+export function exactFeeDecimal(totalCents: Cents): string {
   const scaled = totalCents * PLATFORM_FEE_BPS;
   const whole = Math.floor(scaled / BPS_DENOMINATOR);
   const frac = scaled % BPS_DENOMINATOR;
