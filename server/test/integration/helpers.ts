@@ -10,15 +10,41 @@ import { createDb, type Db } from '../../src/db/client.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { buildApp } from '../../src/app.js';
 import { SeededIdentity } from '../../src/seams/identity.js';
-import { FakePaymentGateway } from '../../src/seams/payment.js';
+import {
+  FakePaymentGateway,
+  type ChargeRequest,
+  type ChargeResult,
+  type PaymentGateway,
+} from '../../src/seams/payment.js';
 import type { Notifier, PaymentNotification } from '../../src/seams/notifier.js';
 
 export const PUBLIC_WEB_ORIGIN = 'http://web.test';
 
 export class RecordingNotifier implements Notifier {
   sent: PaymentNotification[] = [];
+  failNext = false;
   async orderReadyForPayment(n: PaymentNotification): Promise<void> {
+    if (this.failNext) {
+      this.failNext = false;
+      throw new Error('smtp down (test)');
+    }
     this.sent.push(n);
+  }
+}
+
+/** Fake gateway that records every call and can be switched to decline or blow up. */
+export class RecordingGateway implements PaymentGateway {
+  calls: ChargeRequest[] = [];
+  mode: 'succeed' | 'decline' | 'outage' = 'succeed';
+  private readonly inner = new FakePaymentGateway();
+  async charge(req: ChargeRequest): Promise<ChargeResult> {
+    this.calls.push(req);
+    if (this.mode === 'decline') {
+      const { PaymentDeclinedError } = await import('../../src/seams/payment.js');
+      throw new PaymentDeclinedError('card declined (test)', 'card_declined');
+    }
+    if (this.mode === 'outage') throw new Error('gateway timeout (test)');
+    return this.inner.charge(req);
   }
 }
 
@@ -26,6 +52,7 @@ export interface TestContext {
   sql: Db;
   app: FastifyInstance;
   notifier: RecordingNotifier;
+  gateway: RecordingGateway;
   /** Drop the database and close everything. */
   teardown(): Promise<void>;
 }
@@ -50,10 +77,11 @@ export async function createTestContext(): Promise<TestContext> {
   await runMigrations(sql);
 
   const notifier = new RecordingNotifier();
+  const gateway = new RecordingGateway();
   const app = await buildApp({
     sql,
     identity: new SeededIdentity(sql),
-    gateway: new FakePaymentGateway(),
+    gateway,
     notifier,
     publicWebOrigin: PUBLIC_WEB_ORIGIN,
     staticDir: null,
@@ -65,6 +93,7 @@ export async function createTestContext(): Promise<TestContext> {
     sql,
     app,
     notifier,
+    gateway,
     async teardown() {
       await app.close();
       await sql.end({ timeout: 5 });

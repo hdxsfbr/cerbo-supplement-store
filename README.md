@@ -96,6 +96,23 @@ Idempotency: the client generates a key per checkout session; a replay returns t
 receipt; a different key on a paid order gets `409 already_paid`; `payments.order_id` is
 `UNIQUE` as the backstop beneath the application logic.
 
+### The payment boundary, honestly
+
+What ships: `POST /checkout/:token/pay` locks the order row, calls the **fake** gateway, and in
+the same transaction writes the payment, flips the status, inserts the three ledger entries, and
+decrements stock. The deferred trigger re-checks the split at commit. A decline is a 402 and an
+outage a 502, with nothing written either way; replays and conflicting keys never reach the
+gateway; five concurrent pays produce one charge and one stock decrement (all tested).
+
+What this does **not** prove: anything about a real processor. The fake is synchronous and
+cannot fail between "charged" and "recorded", so calling it inside the transaction is correct
+for the fake. A real adapter changes the orchestration in `checkout.ts`, not just the seam:
+write a `pending` payment row first (durable processor identity per order), make the network
+call *outside* the row lock, then mark `succeeded` from the processor's response or webhook,
+with reconciliation for the "charged but we crashed before recording" window. Local uniqueness
+prevents duplicate local rows; only processor-side idempotency prevents duplicate charges.
+None of that is in this slice, and the seam comment in `server/src/seams/payment.ts` says so.
+
 ## Architecture in one paragraph
 
 `web/` is a Vue 3 SPA with two visual surfaces — provider screens in Cerbo's chart idiom
@@ -117,9 +134,9 @@ web/src/views/                OrderBuilder · Checkout · OrderAudit · Dashboar
 
 | Boundary | What is faked here | Where the seam is | What production would do |
 |---|---|---|---|
-| **Identity / EHR** | Acting provider comes from an `x-acting-provider` header (switcher in the nav); patient access is a random capability token on the order (`/pay/<token>`). | `server/src/seams/identity.ts` → `IdentityProvider` | Read the EHR session for the provider; back the patient link with the portal session or a signed, expiring link. Routes never change. |
-| **Payment** | `FakePaymentGateway.charge()` always succeeds and returns a deterministic reference per idempotency key. | `server/src/seams/payment.ts` → `PaymentGateway` | Create/confirm a PaymentIntent (Stripe or similar) with the same idempotency key *before* the DB transaction; handle declines/3DS/webhooks; store the processor reference. The DB still refuses a second payment per order and re-asserts the split at commit, so a buggy gateway cannot corrupt the ledger. |
-| **Email / notification** | `NoopNotifier` logs; the UI shows the payment link instead. | `server/src/seams/notifier.ts` → `Notifier` | Transactional email, or push into Cerbo's patient-portal queue (where supplement refills already surface). |
+| **Identity / EHR** | Acting provider comes from an `x-acting-provider` header (switcher in the nav); patient access is a random capability token on the order (`/pay/<token>`). | `server/src/seams/identity.ts` → `IdentityProvider` | Read the EHR session for the provider; back the patient link with the portal session or a signed, expiring link. Route code calls the same two methods; session plumbing (cookies, middleware) is new code around them. |
+| **Payment** | `FakePaymentGateway.charge()` always succeeds and returns a deterministic reference per idempotency key. Declines/outages are modelled (402/502, nothing written). | `server/src/seams/payment.ts` → `PaymentGateway` | PaymentIntent-style flow with a pending row, the network call outside the DB lock, and webhook reconciliation — see "The payment boundary, honestly" above. The seam interface stays; the route orchestration changes. The DB still refuses a second payment per order and re-asserts the split at commit. |
+| **Email / notification** | `NoopNotifier` logs; the UI shows the payment link instead. Notification is best-effort *after* the send commits: a notifier failure returns `notified: false` with the link, never a failed send. | `server/src/seams/notifier.ts` → `Notifier` | An outbox row written inside the send transaction, delivered asynchronously with retries (email, or Cerbo's patient-portal queue where supplement refills already surface). |
 | **Shipping / fulfilment** | Not modelled. Inventory is a count that decrements at payment and may go negative (flagged). | — | Reservation at send, release on expiry, fulfilment events. |
 | **Providers / patients / catalog** | Seeded by migration `003_seed.sql` (Greek-god demo patients, 8 supplements with COGS and default prices). | the migration | Synced from the EHR and a catalog service. |
 

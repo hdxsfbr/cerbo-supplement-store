@@ -12,6 +12,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { parse } from '../app.js';
 import { HttpError, notFound } from '../errors.js';
+import { PaymentDeclinedError } from '../seams/payment.js';
 import { computeSplit } from '../money/split.js';
 import { loadOrder, patientOrderView, type LoadedOrder } from '../orders/load.js';
 import type { Queryable } from '../db/client.js';
@@ -122,12 +123,25 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
 
       // ── Payment seam. The fake auto-succeeds; a real gateway would be called here with the
       //    same idempotency key, and only a success reaches the writes below.
-      const charge = await gateway.charge({
-        orderId: lock.id,
-        amountCents: split.totalCents,
-        idempotencyKey: idempotency_key,
-        description: `Supplement order #${lock.id} for ${loaded.order.patient_name}`,
-      });
+      let charge;
+      try {
+        charge = await gateway.charge({
+          orderId: lock.id,
+          amountCents: split.totalCents,
+          idempotencyKey: idempotency_key,
+          description: `Supplement order #${lock.id} for ${loaded.order.patient_name}`,
+        });
+      } catch (err) {
+        // Nothing has been written yet; the transaction rolls back and the order stays payable.
+        if (err instanceof PaymentDeclinedError) {
+          throw new HttpError(402, 'payment_declined', err.message);
+        }
+        throw new HttpError(
+          502,
+          'payment_gateway_error',
+          'Payment provider unavailable; try again',
+        );
+      }
 
       const [payment] = await tx<PaymentRow[]>`
         INSERT INTO payments (order_id, idempotency_key, amount_cents, status, gateway_ref)

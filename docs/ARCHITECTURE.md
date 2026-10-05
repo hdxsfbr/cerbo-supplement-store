@@ -86,7 +86,10 @@ flowchart LR
 
 ## The money path (US2: patient pays)
 
-One request, one database transaction, verified at commit by the database itself.
+One request, one database transaction, verified at commit by the database itself. The gateway
+call sits inside the transaction because the shipped gateway is a synchronous fake; see README →
+"The payment boundary, honestly" for what changes with a real processor (pending row, call
+outside the lock, webhook reconciliation).
 
 ![Pay sequence](architecture/pay-sequence.png)
 
