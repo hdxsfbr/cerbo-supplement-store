@@ -1,0 +1,236 @@
+/*
+ * Patient-portal design tokens + base classes (T020).
+ *
+ * This is the patient-facing checkout surface: a plain, light, calm page — the opposite of
+ * cerbo.css's dark EHR chrome. A patient paying for supplements should not feel like they have
+ * wandered into their provider's internal charting software (constitution VI: two surfaces, two
+ * design languages). Imported only by Checkout.vue, never globally from main.ts, so the provider
+ * surface never accidentally inherits these tokens.
+ *
+ * Plain CSS, no framework — custom properties + classes prefixed `portal-`.
+ */
+
+:root {
+  /* Page */
+  --portal-bg: #f7f7f5;
+  --portal-text: #1f2328;
+  --portal-muted: #6b7280;
+
+  /* Card */
+  --portal-card-bg: #ffffff;
+  --portal-card-border: #e4e4e0;
+  --portal-card-shadow: 0 1px 3px rgba(20, 20, 20, 0.06), 0 8px 24px rgba(20, 20, 20, 0.05);
+
+  /* Accent (one calm colour, used sparingly) */
+  --portal-accent: #0f766e;
+  --portal-accent-fg: #ffffff;
+  --portal-accent-hover: #0d6560;
+
+  /* States */
+  --portal-paid-bg: #ecfdf5;
+  --portal-paid-fg: #166534;
+  --portal-paid-border: #bbf7d0;
+  --portal-error-bg: #fef2f2;
+  --portal-error-fg: #991b1b;
+  --portal-error-border: #fecaca;
+  --portal-info-bg: #f1f5f9;
+  --portal-info-fg: #334155;
+  --portal-info-border: #e2e8f0;
+
+  --portal-divider: #edeceb;
+}
+
+.portal-page {
+  min-height: 100%;
+  background: var(--portal-bg);
+  color: var(--portal-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 48px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.portal-card {
+  width: 100%;
+  max-width: 640px;
+  background: var(--portal-card-bg);
+  border: 1px solid var(--portal-card-border);
+  border-radius: 12px;
+  box-shadow: var(--portal-card-shadow);
+  padding: 32px 36px;
+}
+
+.portal-header {
+  margin-bottom: 24px;
+}
+
+.portal-header__practice {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--portal-muted);
+  margin: 0 0 6px;
+}
+
+.portal-header__title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--portal-text);
+}
+
+.portal-meta {
+  font-size: 14px;
+  color: var(--portal-muted);
+  margin: 4px 0 0;
+}
+
+.portal-items {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 15px;
+}
+
+.portal-items thead th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--portal-muted);
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--portal-divider);
+}
+
+.portal-items th.portal-items__num,
+.portal-items td.portal-items__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-items tbody td {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--portal-divider);
+  vertical-align: top;
+}
+
+.portal-items__name {
+  font-weight: 500;
+}
+
+.portal-items__sku {
+  color: var(--portal-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.portal-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 17px;
+  font-weight: 700;
+  padding-top: 16px;
+  margin-bottom: 24px;
+}
+
+.portal-total__amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.portal-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.portal-btn--primary {
+  background: var(--portal-accent);
+  color: var(--portal-accent-fg);
+}
+
+.portal-btn--primary:not(:disabled):hover {
+  background: var(--portal-accent-hover);
+}
+
+.portal-status {
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+}
+
+.portal-status--paid {
+  background: var(--portal-paid-bg);
+  color: var(--portal-paid-fg);
+  border-color: var(--portal-paid-border);
+}
+
+.portal-status--error {
+  background: var(--portal-error-bg);
+  color: var(--portal-error-fg);
+  border-color: var(--portal-error-border);
+}
+
+.portal-status--info {
+  background: var(--portal-info-bg);
+  color: var(--portal-info-fg);
+  border-color: var(--portal-info-border);
+}
+
+.portal-receipt {
+  background: var(--portal-bg);
+  border: 1px solid var(--portal-divider);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.portal-receipt dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.portal-receipt dt {
+  color: var(--portal-muted);
+}
+
+.portal-receipt dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-muted {
+  color: var(--portal-muted);
+}
+
+.portal-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--portal-divider);
+  font-size: 12px;
+  color: var(--portal-muted);
+}
