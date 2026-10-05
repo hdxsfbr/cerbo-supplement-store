@@ -92,3 +92,40 @@ transparency: itemized patient receipts, cent-exact auditable splits, append-onl
 margin-visible audit view is provider-facing; the patient receipt shows items and prices only.
 **Trade-off:** None technically — this is candor the rubric explicitly rewards ("honesty about
 limitations").
+
+## 8. The database asserts the whole split, not just the sum
+
+**Date:** 2026-10-05
+**Context:** The brief and constitution require the sum invariant (COGS + margin + fee = total) to
+be enforced by the system of record. While writing the deferred constraint trigger
+(`002_integrity.sql`), it was equally cheap to assert the components, not only their sum.
+**Decision:** At commit, for every paid order the DB asserts: exactly one ledger entry per type;
+sum = `orders.total_cents`; exactly one payment of the same amount that all entries reference;
+COGS entry = Σ snapshotted item COGS; fee entry = `floor((total × 75 + 5000) / 10000)`. The
+TypeScript split function computes the same numbers; if the two ever disagree the payment
+transaction fails loudly instead of recording a plausible-looking wrong split.
+**Trade-off:** The fee policy now lives in two places (SQL and TS) and changing it is a migration
+plus a code change. For money, that duplication is the point — it's a cross-check, not drift.
+
+## 9. COGS snapshot is taken by the database, not the caller
+
+**Date:** 2026-10-05
+**Context:** FR-002 requires each order line to carry the cost basis at assembly time. The obvious
+implementation has the API read the catalog and write `unit_cogs_cents` on insert.
+**Decision:** A `BEFORE INSERT OR UPDATE` trigger on `order_items` overwrites `unit_cogs_cents`
+from the catalog, so the API cannot pass a stale or fabricated value; items are also locked (any
+INSERT/UPDATE/DELETE rejected) once the order leaves `draft`. Replacing a draft's lines
+re-snapshots at that moment, which is the correct reading of "assembly time".
+**Trade-off:** A little hidden behaviour (a column the caller doesn't set) in exchange for an
+invariant that holds no matter which code path inserts the row — including tests and psql.
+
+## 10. Integration tests run against a throwaway database per test file
+
+**Date:** 2026-10-05
+**Context:** The ledger is append-only — UPDATE/DELETE/TRUNCATE are rejected by trigger and
+revoked. The usual "truncate tables between tests" pattern is therefore impossible by design.
+**Decision:** The test harness creates `cerbo_test_<random>` on the configured Postgres, runs the
+real migrations (schema, invariants, seeds), and drops it in teardown. Test files run serially.
+**Trade-off:** A few hundred ms per file and a CREATEDB-capable role in CI; in return the tests
+exercise the exact migrations and triggers that production runs, with no test-only escape hatch
+in the money tables.

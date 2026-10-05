@@ -26,7 +26,7 @@ DB invariants; no UI test theater).
 - [X] T007 [P] Migration 003_seed.sql: 2 providers (Dr. Marcus Welby, Dr. Sarah Anderson), 6 Greek-god patients, 8 supplements with COGS $4–$38, default prices ~30–60% margin, inventory 20–200
 - [X] T008 Pure split function in server/src/money/split.ts: totals from items, feeCents = floor((total*75+5000)/10000), margin as residual; Number.isSafeInteger guards; returns memo strings for ledger
 - [X] T009 [P] Unit tests in server/test/split.test.ts: sum-invariant property over randomized items, $0.01 order (fee 0), half-cent fee boundary rounds up, negative margin, zero/empty guards — written against T008's interface, must fail before T008 lands (TDD)
-- [ ] T010 Fastify app factory in server/src/app.ts + server/src/index.ts: /api/health, error envelope {error:{code,message}}, static serving of web/dist in prod; seams in server/src/seams/: identity.ts (x-acting-provider header → seeded provider; checkout token → patient), payment.ts (PaymentGateway iface + FakePaymentGateway honoring idempotency_key), notifier.ts (Notifier iface + NoopNotifier logging checkout URL)
+- [X] T010 Fastify app factory in server/src/app.ts + server/src/index.ts: /api/health, error envelope {error:{code,message}}, static serving of web/dist in prod; seams in server/src/seams/: identity.ts (x-acting-provider header → seeded provider; checkout token → patient), payment.ts (PaymentGateway iface + FakePaymentGateway honoring idempotency_key), notifier.ts (Notifier iface + NoopNotifier logging checkout URL)
 
 ## Phase 3: User Story 1 — Provider assembles an order (P1)
 

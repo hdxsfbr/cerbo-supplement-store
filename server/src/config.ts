@@ -19,6 +19,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port,
     nodeEnv,
     logLevel: env.LOG_LEVEL ?? (nodeEnv === 'test' ? 'silent' : 'info'),
-    publicWebOrigin: env.PUBLIC_WEB_ORIGIN ?? `http://localhost:${nodeEnv === 'production' ? port : 5173}`,
+    publicWebOrigin:
+      env.PUBLIC_WEB_ORIGIN ?? `http://localhost:${nodeEnv === 'production' ? port : 5173}`,
   };
 }

@@ -31,7 +31,9 @@ export interface Split {
 
 function assertCents(value: number, label: string): void {
   if (!Number.isSafeInteger(value) || value < 0) {
-    throw new RangeError(`${label} must be a non-negative safe integer number of cents (got ${value})`);
+    throw new RangeError(
+      `${label} must be a non-negative safe integer number of cents (got ${value})`,
+    );
   }
 }
 
@@ -65,7 +67,9 @@ export function computeSplit(items: readonly SplitItem[]): Split {
 
   for (const [i, item] of items.entries()) {
     if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) {
-      throw new RangeError(`items[${i}].quantity must be a positive integer (got ${item.quantity})`);
+      throw new RangeError(
+        `items[${i}].quantity must be a positive integer (got ${item.quantity})`,
+      );
     }
     assertCents(item.unitPriceCents, `items[${i}].unitPriceCents`);
     assertCents(item.unitCogsCents, `items[${i}].unitCogsCents`);

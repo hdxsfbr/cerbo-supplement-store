@@ -45,3 +45,29 @@ over polish: this records where AI helped, where it misled, and where a human ov
 - **T002/T003** compose + Makefile + CI written hands-on (small config, not worth a subagent).
   Compose runs the API/web from the `node:22-alpine` image with a bind mount so there is no dev
   Dockerfile to keep in sync; the production multi-stage `Dockerfile` arrives in T024.
+
+### 2026-10-05 — Phase 2 (money core)
+
+- **T004–T007** written hands-on by Claude, no subagents (money code policy). Before writing
+  tests, the integrity migration was smoke-tested with a 30-statement psql script covering every
+  rejection path (empty send, wrong total, locked items, mismatched sum, wrong fee, 2 entries,
+  payment without paid status, 4th entry, UPDATE/DELETE/TRUNCATE on the ledger). All behaved.
+- **Where AI went further than the spec, deliberately:** the DB trigger asserts fee policy and
+  COGS composition too, not just the sum (DECISIONS #8), and forces the COGS snapshot itself
+  (DECISIONS #9). Flagged for Andre at the Phase 2 stop rather than silently shipped.
+- **One real misread by the AI, caught by inspection:** in the psql smoke test an "expected
+  failure" seemed not to fire. Cause: a prior failed INSERT had consumed an identity value, so
+  the test's hard-coded `id = 2` matched nothing. Not a bug in the trigger; re-ran against the
+  right id and it rejected correctly. Lesson recorded: never hard-code identity ids in checks.
+- **Privilege nuance AI surfaced:** `has_table_privilege` still reports UPDATE/DELETE on the
+  ledger because the compose role is a superuser (bypasses ACLs). The ACL itself shows the
+  REVOKE took (`arxt`, no `wdD`). The trigger is the real guard; the REVOKE is defence in depth.
+- **T009 → T008 TDD:** 20 tests written against the planned interface first (red: module not
+  found), then `split.ts`; all green first run. The memo strings were specified in the tests
+  before the implementation existed.
+- **T010** app factory + seams + integration harness. The harness creates a throwaway DB per
+  test file because the ledger cannot be truncated (DECISIONS #10). Typecheck caught one
+  `noUncheckedIndexedAccess` slip in a test.
+- **Tooling note:** `prettier --check` was red on the T008/T009 commit (4 files) and I only
+  noticed after committing; fixed in the T010 commit. CI runs `format:check`, so this would have
+  been caught there too.

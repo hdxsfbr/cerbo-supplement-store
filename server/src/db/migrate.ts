@@ -30,7 +30,10 @@ export async function listMigrationFiles(dir: string = MIGRATIONS_DIR): Promise<
   return files;
 }
 
-export async function runMigrations(sql: Db, dir: string = MIGRATIONS_DIR): Promise<MigrationResult> {
+export async function runMigrations(
+  sql: Db,
+  dir: string = MIGRATIONS_DIR,
+): Promise<MigrationResult> {
   await sql`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       filename   text PRIMARY KEY,
@@ -43,7 +46,9 @@ export async function runMigrations(sql: Db, dir: string = MIGRATIONS_DIR): Prom
   await sql.begin(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(${LOCK_KEY})`;
     const done = new Set(
-      (await tx<{ filename: string }[]>`SELECT filename FROM schema_migrations`).map((r) => r.filename),
+      (await tx<{ filename: string }[]>`SELECT filename FROM schema_migrations`).map(
+        (r) => r.filename,
+      ),
     );
     for (const file of await listMigrationFiles(dir)) {
       if (done.has(file)) {
@@ -66,7 +71,9 @@ export async function runMigrations(sql: Db, dir: string = MIGRATIONS_DIR): Prom
   return result;
 }
 
-export async function migrationStatus(sql: Db): Promise<{ applied: number; latest: string | null }> {
+export async function migrationStatus(
+  sql: Db,
+): Promise<{ applied: number; latest: string | null }> {
   const rows = await sql<{ filename: string }[]>`
     SELECT filename FROM schema_migrations ORDER BY filename`;
   return { applied: rows.length, latest: rows.at(-1)?.filename ?? null };
@@ -79,7 +86,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   const sql = createDb(loadConfig().databaseUrl, { max: 1 });
   try {
     const r = await runMigrations(sql);
-    console.log(`migrations: ${r.applied.length} applied, ${r.alreadyApplied.length} already applied`);
+    console.log(
+      `migrations: ${r.applied.length} applied, ${r.alreadyApplied.length} already applied`,
+    );
     for (const f of r.applied) console.log(`  + ${f}`);
   } finally {
     await sql.end();

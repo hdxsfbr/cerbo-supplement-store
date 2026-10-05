@@ -101,12 +101,22 @@ describe('computeSplit — COGS + provider margin + platform fee == total', () =
   });
 
   it('returns an all-zero split for an empty item list (draft preview), not an error', () => {
-    expect(computeSplit([])).toMatchObject({ totalCents: 0, cogsCents: 0, feeCents: 0, marginCents: 0 });
+    expect(computeSplit([])).toMatchObject({
+      totalCents: 0,
+      cogsCents: 0,
+      feeCents: 0,
+      marginCents: 0,
+    });
   });
 
   it('allows zero-priced lines (free item) — fee and margin follow', () => {
     const split = computeSplit([item(2, 0, 500)]);
-    expect(split).toMatchObject({ totalCents: 0, cogsCents: 1000, feeCents: 0, marginCents: -1000 });
+    expect(split).toMatchObject({
+      totalCents: 0,
+      cogsCents: 1000,
+      feeCents: 0,
+      marginCents: -1000,
+    });
   });
 
   it('never silently coerces bad input', () => {
@@ -117,7 +127,9 @@ describe('computeSplit — COGS + provider margin + platform fee == total', () =
     expect(() => computeSplit([item(1, 100, -50)])).toThrow(RangeError); // cogs >= 0
     expect(() => computeSplit([item(1, 10.5, 5)])).toThrow(RangeError); // no fractional cents
     expect(() => computeSplit([item(1, 100, Number.NaN)])).toThrow(RangeError);
-    expect(() => computeSplit([item(1, Number.MAX_SAFE_INTEGER, 0), item(1, 1, 0)])).toThrow(RangeError);
+    expect(() => computeSplit([item(1, Number.MAX_SAFE_INTEGER, 0), item(1, 1, 0)])).toThrow(
+      RangeError,
+    );
   });
 
   it('exposes human-readable memos showing the computation (audit view, FR-006)', () => {
