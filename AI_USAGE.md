@@ -12,6 +12,57 @@ over polish: this records where AI helped, where it misled, and where a human ov
   `specs/001-supplement-store/` and `.specify/memory/constitution.md`.
 - **Linear** mirror of `tasks.md` (HDX-51…83) for status tracking.
 
+## Summary (read this first)
+
+**What AI did well**
+
+- The whole money core — schema, the deferred constraint trigger, the split function, 20 unit
+  cases and 45 integration cases — was written in one sitting with no human-found bugs in the
+  invariants. Every adversarial case I could think of (and several the tests invented) is
+  rejected by Postgres, not by application code.
+- Spec-kit discipline paid off: the spec/plan/data-model/contracts were written before any code,
+  then pruned by hand, so implementation was mostly transcription. The task list mapped 1:1 to
+  commits and to Linear issues.
+- Delegation worked where it was scoped tightly: two Sonnet 5 subagents (design tokens +
+  components; patient checkout) each returned green, file-scoped commits that were reviewed and
+  cherry-picked. One bug found on review across both (a sign-formatting edge case).
+- Verification by driving headless Chrome caught four real UI bugs typecheck could not.
+
+**Where AI misled, and how it was caught**
+
+- Scaffolded GitHub Actions CI while the remote was plainly GitLab. Caught by Andre at the
+  Phase 2 review. (Pattern-matching "CI" → GitHub.)
+- Seeded patients with an unordered `INSERT … SELECT … JOIN`, so "Zeus King" was id 3. Caught
+  by an integration test asserting the demo patient's name.
+- `COALESCE(bigint, SUM(bigint))` leaked a numeric → string `"6400"` onto the wire. Caught by a
+  test asserting `toBe(6700)`; the BIGINT tripwire only covers oid 20.
+- A `vitest` config option in the wrong block; a `noUncheckedIndexedAccess` slip in a test; Vue's
+  number-input cast crashing a validator. All caught by typecheck or the headless run.
+- One false alarm chased for a few minutes: a "3.0026.50" price looked like a component bug and
+  was a puppeteer triple-click not selecting text.
+
+**Where AI went beyond the spec (flagged, not hidden)**
+
+- The DB asserts fee policy and COGS composition, not only the sum (DECISIONS #8).
+- The COGS snapshot is taken by a trigger, so the API cannot fabricate it (DECISIONS #9).
+- Inventory decrements inside the payment transaction (DECISIONS #12).
+- Test DB per file instead of truncation, because the ledger cannot be truncated (DECISIONS #10).
+
+**Where the human overrode or steered**
+
+- GitLab CI instead of GitHub Actions. Hard stops after Phase 2 and Phase 4 before continuing.
+  Money code hands-on only, no subagents. Mirror Cerbo's stack (no Nuxt/React/GraphQL/ORM).
+  Keep DECISIONS.md and this file current in the moment, not reconstructed.
+
+**Honest limitations**
+
+- The compose/Railway DB role is a superuser, so the `REVOKE` on the ledger is defence in depth
+  only; the trigger is the real guard. A separate app role is the production fix.
+- GitLab pipelines were queued with no runner for the whole session; CI steps were run locally
+  before every commit instead.
+- The fee policy lives in two places (SQL and TS) on purpose; changing it is a migration plus a
+  code change.
+
 ## Workflow narrative
 
 1. **Brief → PRD.** Restructured the Gauntlet brief into `docs/PRD.md` with FR-IDs so commits and
@@ -154,3 +205,15 @@ over polish: this records where AI helped, where it misled, and where a human ov
   statement about my intent and a false one about Vue's behaviour. Normalised with `String()`.
 - Low-stock threshold (25) is a constant in `dashboard.ts`; a practice-level setting would be
   the production version. Logged here rather than in DECISIONS since it is a UI heuristic.
+
+### 2026-10-05 — Phase 6 (delivery)
+
+- **T024 image:** multi-stage Dockerfile, 68 MB runtime, non-root, healthcheck. First build
+  passed every check except one: checkout links still showed `http://localhost:3000` because an
+  earlier Prettier pass had reflowed the config line my scripted edit was matching — the edit
+  silently did nothing. Caught by actually curling the container with a forged `Host`. Lesson:
+  after a scripted edit, grep for the result, not the absence of an error.
+- **T025/T026:** README and this file written hands-on. Cross-checked DECISIONS.md #1–#12
+  against what shipped; all current.
+- Railway deployment requires Andre's account; the image is verified locally against the
+  compose database (health, SPA, history fallback, derived origin).
