@@ -24,7 +24,7 @@ export interface AppDeps {
   identity: IdentityProvider;
   gateway: PaymentGateway;
   notifier: Notifier;
-  /** Origin used to build patient checkout URLs (the "email" content). */
+  /** Origin used to build patient checkout URLs (the "email" content). '' = use request Host. */
   publicWebOrigin: string;
   /** Directory of the built SPA to serve (production single-image mode); null = API only. */
   staticDir?: string | null;
@@ -56,6 +56,17 @@ export async function requireProvider(req: FastifyRequest): Promise<Provider> {
   const provider = await req.server.deps.identity.resolveProvider(headerValue);
   if (!provider) throw new HttpError(401, 'unknown_provider', 'No such acting provider');
   return provider;
+}
+
+/** Public origin for links we hand to patients: configured value, else the request's own origin. */
+export function publicOrigin(req: FastifyRequest): string {
+  const configured = req.server.deps.publicWebOrigin;
+  if (configured) return configured;
+  const proto =
+    (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0] ?? req.protocol;
+  const host =
+    (req.headers['x-forwarded-host'] as string | undefined) ?? req.headers.host ?? 'localhost';
+  return `${proto}://${host}`;
 }
 
 /** Parse a positive-integer route param. */

@@ -5,7 +5,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { idParam, parse, requireProvider } from '../app.js';
+import { idParam, parse, publicOrigin, requireProvider } from '../app.js';
 import { HttpError, notFound, orderLocked } from '../errors.js';
 import { loadOrder, providerOrderView } from '../orders/load.js';
 import { PLATFORM_FEE_BPS, exactFeeDecimal } from '../money/split.js';
@@ -26,12 +26,12 @@ const itemsBody = z.object({
 });
 
 export async function ordersRoutes(app: FastifyInstance): Promise<void> {
-  const { sql, notifier, publicWebOrigin } = app.deps;
+  const { sql, notifier } = app.deps;
 
-  const view = async (id: number, providerId: number) => {
+  const view = async (id: number, providerId: number, origin: string) => {
     const loaded = await loadOrder(sql, { id, provider_id: providerId });
     if (!loaded) throw notFound('Order');
-    return providerOrderView(loaded, publicWebOrigin);
+    return providerOrderView(loaded, origin);
   };
 
   // POST /api/orders — create a draft for one of the provider's patients
@@ -45,7 +45,7 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
       INSERT INTO orders (provider_id, patient_id) VALUES (${provider.id}, ${patient.id})
       RETURNING id`;
     if (!created) throw new HttpError(500, 'internal_error', 'order insert returned no row');
-    return reply.status(201).send(await view(created.id, provider.id));
+    return reply.status(201).send(await view(created.id, provider.id, publicOrigin(req)));
   });
 
   // PUT /api/orders/:id/items — replace the draft's lines (COGS snapshot taken by the DB)
@@ -80,13 +80,13 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
         )}`;
       }
     });
-    return view(id, provider.id);
+    return view(id, provider.id, publicOrigin(req));
   });
 
   // GET /api/orders/:id — order + lines + live split preview
   app.get<{ Params: { id: string } }>('/api/orders/:id', async (req) => {
     const provider = await requireProvider(req);
-    return view(idParam(req.params.id), provider.id);
+    return view(idParam(req.params.id), provider.id, publicOrigin(req));
   });
 
   // POST /api/orders/:id/send — draft → awaiting_payment; freezes total; issues checkout link
@@ -103,7 +103,7 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
       UPDATE orders SET status = 'awaiting_payment' WHERE id = ${id} AND status = 'draft'`;
     if (sent.count === 0) throw orderLocked('Order has already been sent');
 
-    const result = await view(id, provider.id);
+    const result = await view(id, provider.id, publicOrigin(req));
     await notifier.orderReadyForPayment({
       orderId: id,
       patient: result.patient,
@@ -136,7 +136,7 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
       ORDER BY array_position(ARRAY['cogs','provider_margin','platform_fee'], entry_type)`;
     const total = loaded.order.total_cents;
     const feeEntry = entries.find((e) => e.entry_type === 'platform_fee');
-    const view = providerOrderView(loaded, publicWebOrigin);
+    const view = providerOrderView(loaded, publicOrigin(req));
     return {
       order_id: id,
       status: loaded.order.status,

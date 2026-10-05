@@ -5,7 +5,10 @@ export interface Config {
   port: number;
   nodeEnv: 'development' | 'test' | 'production';
   logLevel: string;
-  /** Origin the patient-facing checkout links should point at (the "email" stub prints these). */
+  /**
+   * Origin the patient-facing checkout links should point at (the "email" stub prints these).
+   * Empty string = derive from each request's Host (single-image deploy, SPA + API same origin).
+   */
   publicWebOrigin: string;
 }
 
@@ -19,7 +22,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port,
     nodeEnv,
     logLevel: env.LOG_LEVEL ?? (nodeEnv === 'test' ? 'silent' : 'info'),
+    // Production default '' → links derive from each request's Host (SPA + API share an origin).
     publicWebOrigin:
-      env.PUBLIC_WEB_ORIGIN ?? `http://localhost:${nodeEnv === 'production' ? port : 5173}`,
+      env.PUBLIC_WEB_ORIGIN ?? (nodeEnv === 'production' ? '' : 'http://localhost:5173'),
   };
 }
