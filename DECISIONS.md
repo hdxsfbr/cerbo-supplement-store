@@ -42,7 +42,7 @@ partner's real stack makes the work directly legible to their team.
 
 ## 4. Fee math: 75 bps on order total, borne by the provider margin
 
-**Date:** 2026-10-05 (proposed — revisit when payment flow lands)
+**Date:** 2026-10-05 (shipped in T017; enforced by `002_integrity.sql` §2)
 **Context:** The brief requires COGS + provider margin + 75 bps platform fee to sum exactly to what
 the patient paid.
 **Decision:** All money in integer cents. Platform fee = round-half-up(order_total × 75 / 10000),
@@ -143,7 +143,7 @@ read as "git repository with source"; the GitLab URL is what gets submitted.
 **Trade-off:** None technically. The miss is logged in AI_USAGE.md as an example of the AI
 pattern-matching "CI" to GitHub Actions without checking `git remote`.
 
-## 12. Inventory decrements at payment, may go negative (proposed — lands with T017)
+## 12. Inventory decrements at payment, may go negative (shipped in T017)
 
 **Date:** 2026-10-05
 **Context:** The brief treats inventory as informational ("no stock levels required unless

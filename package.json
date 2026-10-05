@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Cerbo in-house supplement store \u2014 vertical slice (Vue 3 SPA + Fastify API + Postgres)",
+  "description": "Cerbo in-house supplement store — vertical slice (Vue 3 SPA + Fastify API + Postgres)",
   "workspaces": [
     "server",
     "web"
@@ -28,6 +28,7 @@
     "eslint-plugin-vue": "^10.6.0",
     "globals": "^16.4.0",
     "prettier": "^3.6.2",
+    "puppeteer-core": "^25.12.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.0",
     "vue-eslint-parser": "^10.2.0"

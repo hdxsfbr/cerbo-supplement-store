@@ -242,3 +242,32 @@ over polish: this records where AI helped, where it misled, and where a human ov
   was dead — checkout routes queried the token directly, bypassing the seam the README
   advertises. Fixed by routing through it. Coverage didn't make the code correct; it caught a
   design promise the code wasn't keeping.
+
+## Post-delivery review (Astra, 2026-10-05)
+
+After the initial delivery, Andre had an independent AI reviewer ("Astra") audit the repo. It
+filed twelve Linear tickets (HDX-84…95). I re-verified each against the code before acting.
+Status is what actually shipped, not what was planned.
+
+| Ticket | Finding | Verdict | Outcome |
+|---|---|---|---|
+| HDX-84 | Autosave race: edit during an in-flight PUT was marked saved | **Confirmed** — `dirty = false` after the `else` branch | Fixed: revision-tracked, serialised saves; `send()` flushes first. 4 deterministic tests. |
+| HDX-85 | Invalid price text left the order sendable at the old price | Confirmed | Fixed: MoneyInput reports validity; invalid lines block autosave and Send; field error; valid 0 allowed. |
+| HDX-86 | Dashboard reads not in one snapshot | Confirmed (ms-wide window) | Fixed: REPEATABLE READ READ ONLY transaction; test commits a payment mid-read. |
+| HDX-87 | `TRUNCATE order_items` bypassed the row guard | Confirmed | Fixed: migration 004 BEFORE TRUNCATE triggers + REVOKE on order_items/orders/payments; test. |
+| HDX-88 | Gateway inside the DB transaction; no failure tests | Documentation gap, not a defect of the fake | Decline → 402, outage → 502, nothing written; RecordingGateway asserts call counts + rows + stock; README "payment boundary, honestly". Orchestration deliberately unchanged. |
+| HDX-89 | Notifier failure after commit → 500, retry → 409 | Confirmed | Fixed: notifier is best-effort; response carries `notified:false`; test. |
+| HDX-90 | No frontend tests; `--passWithNoTests` | Fair | Web Vitest suite (31), root `npm test` runs both, flag removed, e2e browser script checked in, test scopes documented. |
+| HDX-91 | Stale/overstated docs | Partly valid | Fixed the concrete errors (advisory-lock comment, vitest comment, "proposed" markers, PRD "to come", refund wording, seam "no caller changes" wording); added reviewer path and allocation-vs-accounting note; left the editorial items. |
+| HDX-92 | Deliverables: video, GitHub vs GitLab | Human-owned | Video to record; hosting to confirm against the portal form. |
+| HDX-93 | Gross vs net margin labels | Valid | Fixed: "Gross margin %" / "Gross line margin" (before fee), "Provider margin (after fee)", line-specific below-cost warning, order-level negative-net-margin warning (verified: at-cost line → −$0.03). |
+| HDX-94 | Shared money module | Backlog | Deferred; duplication documented; cross-layer fixed cases now exist in `web/test/money.test.ts`. |
+| HDX-95 | Snapshot product name/SKU | Backlog | Deferred; no catalog editing in this slice. |
+
+**What the review taught me.** All four confirmed code bugs were in concurrency or UI state —
+the areas with the thinnest tests — while the money core the review hammered hardest came out
+clean. The reviewer's reproductions (hold a PUT, commit a payment between reads, TRUNCATE a
+table) are exactly the tests I should have written first. Also: two of my own doc comments
+described code I had changed since writing them. Comments need the same re-read as code.
+
+Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green on GitLab.

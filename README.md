@@ -53,11 +53,18 @@ that machine's address — payment links are built from `PUBLIC_WEB_ORIGIN`.
 
 ```bash
 npm install
-npm test                       # money math, no DB (20 cases: half-cent boundaries, 1¢ order, negative margin, 5k-run sum-invariant property)
+npm test                       # server money math (20) + web money helpers and draft-store races (31); no DB
 docker compose up -d db
-npm run test:integration       # 45 cases against a throwaway Postgres per file — see below
+npm run test:integration       # 51 cases against a throwaway Postgres per file — see below
+npm run test:coverage -w server   # V8 coverage for server/src only
 npm run typecheck && npm run lint && npm run format:check
+node scripts/e2e-browser.mjs   # headless Chrome: builder → send → pay → reload → audit (needs a running stack)
 ```
+
+Test scopes, so the numbers aren't misread: unit tests cover pure TypeScript on both sides;
+integration tests cover the API and the SQL triggers end to end on a real database; the browser
+script covers the rendered UI. Server coverage figures do not include SQL trigger branches
+(exercised by the integration suite, not measured) or the web app.
 
 The integration suite creates a fresh database per test file, runs the real migrations, and
 then tries to break the money model from *outside* the application — hand-rolled SQL inserting
@@ -65,6 +72,15 @@ a mismatched split, a wrong fee, a 4th ledger entry, an `UPDATE` on the ledger, 
 unpaid order — and asserts the **database** rejects each one. It also fires five concurrent pay
 requests with the same key (five identical 200s, one payment) and with different keys (one 200,
 four 409s). CI runs all of it (`.gitlab-ci.yml`).
+
+## Reviewer path
+
+1. [How the money works](#how-the-money-works) below, then `server/src/db/migrations/002_integrity.sql`.
+2. `server/test/integration/payment.test.ts` — the DB-rejection and concurrency cases.
+3. [DECISIONS.md](DECISIONS.md) #4, #8, #9 (fee policy, what the DB asserts, COGS snapshot).
+4. [Assumptions and deliberate cuts](#assumptions-and-deliberate-cuts) and
+   [The payment boundary, honestly](#the-payment-boundary-honestly).
+5. [AI_USAGE.md](AI_USAGE.md) → Summary, then the "Post-delivery review" section.
 
 ## How the money works
 
@@ -91,6 +107,11 @@ privileges); orders move only `draft → awaiting_payment → paid`; items are l
 a paid order is immutable; the COGS snapshot is written by a trigger from the catalog, so no
 caller can fabricate it. `server/src/money/split.ts` computes the same numbers in TypeScript —
 if the two ever disagree the payment transaction fails instead of recording a wrong split.
+
+**What the ledger is, and isn't.** `ledger_entries` records the *allocation* of each sale —
+how the amount the patient paid divides into COGS, provider margin and platform fee. It is not
+a general ledger, and it says nothing about payouts to providers, processor settlement, or
+accounting periods; those would be built on top of it, reading it as the source of truth.
 
 Idempotency: the client generates a key per checkout session; a replay returns the original
 receipt; a different key on a paid order gets `409 already_paid`; `payments.order_id` is
@@ -148,8 +169,10 @@ web/src/views/                OrderBuilder · Checkout · OrderAudit · Dashboar
   provider's margin. Rounding is half-up. (DECISIONS.md #4)
 - Pricing lives on the order line; the catalog's default price only pre-fills. (DECISIONS.md #6)
 - Negative margin is allowed with a warning — the provider's call.
-- No refunds/returns. The append-only ledger is designed for compensating entries, which is the
-  obvious next feature; `UNIQUE (order_id, entry_type)` would relax to accommodate them.
+- No refunds/returns. Refunds would be compensating ledger entries, but that is more than
+  relaxing `UNIQUE (order_id, entry_type)`: the commit-time invariant (exactly three entries
+  summing to the payment) and the one-payment-per-order model would both need redesign to admit
+  a refund payment and its negative allocations. Deliberately out of scope.
 - No real auth, no catalog management UI, no search, no imagery, no tests for UI chrome.
 - Low-stock threshold is a constant (25); inventory is informational, not a sales blocker.
 

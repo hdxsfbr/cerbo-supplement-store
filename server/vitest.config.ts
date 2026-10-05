@@ -4,7 +4,8 @@ import { defineConfig } from 'vitest/config';
 // Postgres (docker compose up db). Keep money-math tests runnable with zero infra.
 export default defineConfig({
   test: {
-    // Integration tests share one database; never run their files concurrently.
+    // Each integration file creates (and drops) its own database, but files run serially so
+    // one Postgres instance isn't asked to CREATE DATABASE several times at once.
     fileParallelism: false,
     projects: [
       {

@@ -99,4 +99,5 @@ Submission happens directly from the portal project page, tied to project Versio
 
 - Decisions & trade-offs → `DECISIONS.md` (running log, updated as decisions happen)
 - Cerbo UI reference & design language → `docs/cerbo-ui-reference/`
-- Money-split correctness (FR-3/FR-4) → ledger test suite (to come with the scaffold)
+- Money-split correctness (FR-3/FR-4) → `server/test/split.test.ts` (unit) and `server/test/integration/payment.test.ts` (DB-enforced invariants)
+- Impact metric caveat: the dashboard reports GMV processed in-house; volume *migrated off* third-party marketplaces is not measurable inside this slice (no baseline data exists)

@@ -2,7 +2,8 @@
 //
 // Applies `./migrations/*.sql` in lexical order, each inside its own transaction, and records
 // the filename in `schema_migrations`. Runs on API boot (index.ts) and via `npm run migrate`.
-// A session-level advisory lock serialises concurrent boots (e.g. two replicas starting).
+// The whole batch runs in ONE transaction holding a transaction-scoped advisory lock
+// (pg_advisory_xact_lock), which serialises concurrent boots (e.g. two replicas starting).
 // There is no "down": migrations here define money invariants and seeds; rolling those back
 // is a new forward migration, same as the ledger it protects.
 
@@ -42,7 +43,7 @@ export async function runMigrations(
 
   const result: MigrationResult = { applied: [], alreadyApplied: [] };
 
-  // Hold the advisory lock for the whole run on a single reserved connection.
+  // One transaction for the whole batch; the xact-scoped lock is released at COMMIT/ROLLBACK.
   await sql.begin(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(${LOCK_KEY})`;
     const done = new Set(
