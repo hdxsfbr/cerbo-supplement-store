@@ -42,3 +42,6 @@ over polish: this records where AI helped, where it misled, and where a human ov
   unrelated container; `API_PORT` / `WEB_PORT` are env-overridable in compose for that reason.
 - **Linear:** the Linear MCP connector is not exposed in this session, so status updates are
   batched for the human at each hard stop instead of being pushed live.
+- **T002/T003** compose + Makefile + CI written hands-on (small config, not worth a subagent).
+  Compose runs the API/web from the `node:22-alpine` image with a bind mount so there is no dev
+  Dockerfile to keep in sync; the production multi-stage `Dockerfile` arrives in T024.

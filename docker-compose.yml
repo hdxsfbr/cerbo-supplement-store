@@ -1,0 +1,58 @@
+# Local dev stack: Postgres 16 + API (tsx watch) + Vite dev server.
+#   docker compose up --build
+# Ports are overridable via .env (API_PORT / WEB_PORT) if 3000/5173 are taken on the host.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cerbo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cerbo}
+      POSTGRES_DB: ${POSTGRES_DB:-cerbo_store}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-cerbo} -d ${POSTGRES_DB:-cerbo_store}']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  server:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund && npm run dev --workspace server"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-cerbo}:${POSTGRES_PASSWORD:-cerbo}@db:5432/${POSTGRES_DB:-cerbo_store}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Checkout URLs handed to the "email" stub must point at the host-visible web origin.
+      PUBLIC_WEB_ORIGIN: http://localhost:${WEB_PORT:-5173}
+    ports:
+      - '${API_PORT:-3000}:3000'
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund && npm run dev --workspace web"
+    environment:
+      VITE_API_BASE: http://localhost:${API_PORT:-3000}
+      VITE_PROXY_TARGET: http://server:3000
+    ports:
+      - '${WEB_PORT:-5173}:5173'
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    depends_on:
+      - server
+
+volumes:
+  pgdata:
+  node_modules:
