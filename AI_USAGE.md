@@ -116,3 +116,29 @@ over polish: this records where AI helped, where it misled, and where a human ov
 - **Scope call:** spec US1 scenario 2 ("set a margin % instead of a price") was implemented as
   a per-line margin % input that derives the price with integer math rounded up to the cent
   (`priceForMarginBps`). Gross margin is defined on price, before the platform fee.
+
+### 2026-10-05 — Phase 4 (US2: pay → ledger → audit, the graded core)
+
+- **Split of labour:** T017–T019 (pay transaction, ledger route, 23 integration tests) hands-on;
+  T020 (patient checkout surface) delegated to one Sonnet 5 agent in a worktree. Its work was
+  accepted on review without code changes (one CSS tweak: `min-height: 100vh`). T021 (audit
+  view) hands-on.
+- **Design choice in the pay route the AI made and I'm flagging:** the order row is locked
+  `FOR UPDATE` for the whole pay transaction and the (fake) gateway is called inside it. With a
+  real processor you would call the gateway *before* opening the transaction, keyed by the same
+  idempotency key, and treat the DB write as the commit point — the comment in `checkout.ts`
+  says so. The lock is what makes the 5-way same-key race return five identical 200s instead of
+  four unique-violation 409s; the test pins that.
+- **Tests caught nothing new this phase — a good sign for Phase 2.** All 23 payment cases,
+  including the raw-SQL attacks (mismatched sum, wrong fee, paid-without-ledger, wrong payment
+  amount, 4th entry, UPDATE/DELETE/TRUNCATE) passed on first run; the triggers written in T006
+  were doing the work. One typing hiccup: porsager's `TransactionSql` is not assignable to `Sql`,
+  so the shared loader now takes a `Queryable` union.
+- **Self-inflicted detour:** the end-to-end run reported "payment link not valid" — the API
+  process I'd started for Phase 3 predated the checkout routes (plain `tsx`, no `watch`).
+  Restarting it fixed it; nothing in the code was wrong. Noted so the next person doesn't chase
+  a phantom 404.
+- **Verified end to end in headless Chrome:** builder → send → patient checkout → pay (with a
+  double-click) → reload shows receipt → provider audit shows `BALANCED: $66.00 of $66.00 ✓`
+  with the half-cent case on purpose (6600¢ × 75 bps = 49.5¢ → 50¢). Screenshots in
+  `docs/screenshots/`.

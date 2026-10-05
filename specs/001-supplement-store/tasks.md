@@ -49,8 +49,8 @@ audit view shows every cent. **Independent test**: contract invariants 1–4 in 
 - [X] T017 [US2] Routes in server/src/routes/checkout.ts: GET /api/checkout/:token (order view / receipt shape if paid), POST /api/checkout/:token/pay — single transaction: validate amount = total, insert payment (idempotency replay returns original 200; different key on paid order → 409 already_paid), order → paid, insert 3 ledger entries from T008 with memos
 - [X] T018 [US2] Route GET /api/orders/:id/ledger in server/src/routes/orders.ts: entries + fee computation inputs (total, 75 bps, rounding memo); 409 if not paid
 - [X] T019 [US2] Integration tests in server/test/integration/payment.test.ts: invariant holds on paid order, double-pay same key (one payment row, same response), different key → 409, direct SQL attempt at 4th ledger entry / mismatched sum / UPDATE ledger_entries rejected by DB
-- [ ] T020 [P] [US2] Patient surface: web/src/styles/portal.css (clean portal look) + Checkout.vue in web/src/views/ (items, total, Pay button with client-generated idempotency key, receipt state)
-- [ ] T021 [US2] OrderAudit.vue in web/src/views/: cent-by-cent ledger table (Cerbo billing-block idiom: dated rows, red charges, bold balance), fee memo display; linked from OrderBuilder/Dashboard
+- [X] T020 [P] [US2] Patient surface: web/src/styles/portal.css (clean portal look) + Checkout.vue in web/src/views/ (items, total, Pay button with client-generated idempotency key, receipt state)
+- [X] T021 [US2] OrderAudit.vue in web/src/views/: cent-by-cent ledger table (Cerbo billing-block idiom: dated rows, red charges, bold balance), fee memo display; linked from OrderBuilder/Dashboard
 
 ## Phase 5: User Story 3 — Dashboard: sales & inventory (P2)
 
