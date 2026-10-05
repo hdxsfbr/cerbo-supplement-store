@@ -57,7 +57,7 @@ audit view shows every cent. **Independent test**: contract invariants 1–4 in 
 **Goal**: Aggregates reconcile structurally with ledger; inventory editable. **Independent
 test**: spec US3 scenarios; contract invariant 5.
 
-- [ ] T022 [US3] Route GET /api/dashboard/summary in server/src/routes/dashboard.ts (sums over ledger_entries; low/negative inventory flags) + PATCH /api/supplements/:id/inventory in catalog.ts; reconciliation integration test in server/test/integration/dashboard.test.ts (summary = Σ per-order ledgers)
+- [X] T022 [US3] Route GET /api/dashboard/summary in server/src/routes/dashboard.ts (sums over ledger_entries; low/negative inventory flags) + PATCH /api/supplements/:id/inventory in catalog.ts; reconciliation integration test in server/test/integration/dashboard.test.ts (summary = Σ per-order ledgers)
 - [ ] T023 [US3] Dashboard.vue in web/src/views/: gross/margin/fees/orders tiles, paid-orders table with drill-in to OrderAudit, inventory table with inline edit + negative-stock flag, styled per Cerbo billing idiom
 
 ## Phase 6: Polish & Delivery
