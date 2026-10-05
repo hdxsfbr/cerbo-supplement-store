@@ -223,3 +223,14 @@ over polish: this records where AI helped, where it misled, and where a human ov
   have been correct on the https Railway URL — it only broke on the LAN demo. Added a
   `getRandomValues` fallback. Validation against a *different origin than the one you develop
   on* is worth the minute it costs.
+- **T024 Railway:** CLI-driven (`init` → `add --database postgres` → `add --service app` with
+  a `${{Postgres.DATABASE_URL}}` reference → `up` → `domain`). Two stalls, both billing, neither
+  code: the first upload was refused until a payment method was attached, and the Postgres
+  service that had been created during the restricted window sat in FAILED and could not be
+  redeployed from the CLI — a `serviceInstanceDeploy` GraphQL mutation brought it up, then a
+  plain `railway redeploy` of the app succeeded. The app's one crash in between was exactly
+  the expected one (`ENOTFOUND postgres.railway.internal`), which is the boot-time migration
+  runner refusing to start without a database — the right failure mode.
+- **T027 scenario 5:** quickstart scenario 2 was driven headlessly against the public URL; the
+  ledger balanced and the derived-origin checkout link pointed at the Railway domain with no
+  `PUBLIC_WEB_ORIGIN` configured, as designed.

@@ -5,7 +5,7 @@ Cerbo's EHR, the patient pays through a stubbed checkout, and the system records
 every cent went: **COGS + provider margin + a 75 bps platform fee = what the patient paid**, as
 integer cents, in an append-only ledger whose invariants are enforced by the database itself.
 
-- **Live demo:** _Railway URL pending — see [Deploy](#deploy)_
+- **Live demo:** https://app-production-500d.up.railway.app (Railway, single image + managed Postgres; `GET /api/health` reports migration status)
 - **Stack:** Vue 3 + TypeScript SPA · Fastify (TypeScript) REST API · PostgreSQL 16 · Docker
   (mirrors Cerbo's own stack — [DECISIONS.md #3](DECISIONS.md))
 - **Docs:** [Architecture + glossary](docs/ARCHITECTURE.md) · [PRD](docs/PRD.md) ·
@@ -162,5 +162,6 @@ docker build -t cerbo-store .
 docker run -p 3000:3000 -e DATABASE_URL=postgres://user:pass@host:5432/db cerbo-store
 ```
 
-On Railway: new project from this repo (Dockerfile is auto-detected), add a Postgres service,
-set `DATABASE_URL` from it, generate a public domain. `GET /api/health` reports migration status.
+Deployed with the Railway CLI: `railway init` → `railway add --database postgres` →
+`railway add --service app --variables 'DATABASE_URL=${{Postgres.DATABASE_URL}}'` →
+`railway up --service app` → `railway domain`. Live at https://app-production-500d.up.railway.app.

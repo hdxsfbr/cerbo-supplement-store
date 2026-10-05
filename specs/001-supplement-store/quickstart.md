@@ -69,6 +69,6 @@ migration version.
 | 2 | End-to-end core flow (headless Chrome against the compose stack) | ✅ builder → send → patient pay (double-click) → reload shows receipt → audit `BALANCED: $66.00 of $66.00 ✓`; the demo order deliberately lands on the half-cent case (6600¢ × 75 bps = 49.5¢ → 50¢) |
 | 3 | Invariant & idempotency (`npm run test:integration`) | ✅ 45/45 — replay returns original receipt; different key → 409; sent order edit → 409; hand-rolled SQL (4th entry, mismatched sum, wrong fee, paid-without-ledger, wrong payment amount, UPDATE/DELETE/TRUNCATE on the ledger) rejected **by Postgres** with SQLSTATEs CB001/CB002/CB003 |
 | 4 | Dashboard reconciliation (UI + `dashboard.test.ts`) | ✅ tiles equal Σ per-order ledgers; `cogs + margin + fees = gross` line shown green; inventory edit persists across reload; a sale past zero stock flags "oversold" |
-| 5 | Deployed URL | ⏳ pending Railway deploy — image verified locally (`docker run` against compose Postgres: `/api/health` ok, SPA + history fallback, checkout links derive from request host) |
+| 5 | Deployed URL — https://app-production-500d.up.railway.app | ✅ `/api/health` → `{ok:true, migrations: 3 applied}`; SPA + history fallback 200; API 404 envelope; scenario 2 run headlessly against the public URL: build → send → pay → reload receipt → audit `BALANCED: $66.00 of $66.00 ✓`, no page errors |
 
 Screenshots of each screen are in `docs/screenshots/`.

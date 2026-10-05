@@ -62,10 +62,10 @@ test**: spec US3 scenarios; contract invariant 5.
 
 ## Phase 6: Polish & Delivery
 
-- [ ] T024 Multi-stage Dockerfile (build web → build server → single runtime image serving SPA + API, migrations on boot) and deploy to Railway with managed Postgres; verify /api/health and quickstart scenario 2 on the public URL
+- [X] T024 Multi-stage Dockerfile (build web → build server → single runtime image serving SPA + API, migrations on boot) and deploy to Railway with managed Postgres; verify /api/health and quickstart scenario 2 on the public URL
 - [X] T025 [P] README.md rewrite: run instructions (quickstart), architecture sketch, stubbed-seams table (what's fake, where the seam is, what production would do), assumptions; conflict-of-interest transparency paragraph (DECISIONS.md #7)
 - [X] T026 [P] AI_USAGE.md: tools used, what worked / misled / was overridden, spec-kit workflow narrative; cross-check DECISIONS.md is current through implementation
-- [ ] T027 Full quickstart.md validation pass (scenarios 1–5) against local + deployed; fix gaps; record results in quickstart.md
+- [X] T027 Full quickstart.md validation pass (scenarios 1–5) against local + deployed; fix gaps; record results in quickstart.md
 
 ## Dependencies
 

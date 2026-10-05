@@ -156,3 +156,15 @@ stock). No floor: negative counts are allowed and flagged red on the dashboard. 
 via `PATCH /supplements/:id/inventory` set the absolute count.
 **Trade-off:** No reservation/oversell protection, which is fine for "Cerbo holds the inventory"
 at demo scale; a real version would reserve at send and release on expiry.
+
+## 13. Checkout links derive from the request host in production
+
+**Date:** 2026-10-05
+**Context:** The single-image deploy serves SPA and API from one origin, and the Railway domain
+is only known after the first deploy. Hard-coding `PUBLIC_WEB_ORIGIN` would mean a second deploy
+just to fix links.
+**Decision:** When `PUBLIC_WEB_ORIGIN` is unset in production, build payment links from
+`x-forwarded-proto` / `x-forwarded-host` (falling back to `Host`). Local dev and the Tailscale
+demo still set it explicitly because the SPA and API are on different ports there.
+**Trade-off:** Trusting forwarded headers is fine behind Railway's edge; behind an untrusted proxy
+you would pin the origin instead. The env var remains the override.
