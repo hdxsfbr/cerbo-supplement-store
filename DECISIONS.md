@@ -1,0 +1,94 @@
+# Key Decisions
+
+A running log of the decisions made on this project, kept as they happen (not reconstructed
+afterward). Feeds directly into the "key decisions and trade-offs" deliverable.
+
+---
+
+## 1. Build standalone — no real EHR integration
+
+**Date:** 2026-10-05
+**Context:** The brief frames the store as living "inside our product" (Cerbo's EHR), but Cerbo is
+proprietary — there's no codebase or sandbox to integrate with in a 1–2 day take-home.
+**Decision:** Build a standalone app. Keep the EHR boundary as a clean seam: provider/patient
+identity comes from seeded data behind a thin gateway layer that, in production, would be backed by
+the EHR session and Cerbo's REST API (docs.cer.bo).
+**Trade-off:** No real integration to show off, but the brief explicitly says to stub auth and keep
+seams clean. The seam itself is the demonstration.
+
+## 2. Mimic Cerbo's actual UI
+
+**Date:** 2026-10-05
+**Context:** The provider experience is meant to feel like part of Cerbo, not a separate storefront.
+Cerbo's public Storylane demo shows their real interface.
+**Decision:** Style provider-facing screens in Cerbo's design language (colored panel headers, dense
+tables, ledger-style billing block) using the reference captures in `docs/cerbo-ui-reference/`.
+Patient checkout gets a cleaner patient-portal look, matching how Cerbo separates the two surfaces.
+**Trade-off:** Slightly more styling effort than the brief requires ("we are not grading visual
+design"), but it sells the product vision and cost is low since we're copying an established idiom.
+**Noted:** Their chart already has a Supplements tab and a supplement-refill portal queue — the
+feature slots into an existing mental model.
+
+## 3. Mirror Cerbo's tech stack
+
+**Date:** 2026-10-05
+**Context:** No tech restrictions in the brief. Cerbo's profile lists Vue, TypeScript/JavaScript,
+MySQL/Postgres, REST, AWS/Docker/CI-CD.
+**Decision:** Vue 3 + TS + Vite SPA, Fastify (TS) REST API, Postgres, docker-compose locally,
+Dockerized deploy, GitHub Actions CI. Plain SPA + REST server rather than Nuxt, because that mirrors
+their actual architecture.
+**Trade-off:** A meta-framework like Nuxt or Next would deploy slightly faster, but matching the
+partner's real stack makes the work directly legible to their team.
+
+## 4. Fee math: 75 bps on order total, borne by the provider margin
+
+**Date:** 2026-10-05 (proposed — revisit when payment flow lands)
+**Context:** The brief requires COGS + provider margin + 75 bps platform fee to sum exactly to what
+the patient paid.
+**Decision:** All money in integer cents. Platform fee = round-half-up(order_total × 75 / 10000),
+computed once on the order total (not per item, fewer rounding seams). Provider margin =
+total − COGS − fee, so the fee comes out of the provider's margin and the patient pays sticker price.
+Ledger entries are append-only; a DB-level check enforces that splits sum to the total exactly.
+**Trade-off:** Per-item fee attribution would make item-level reporting richer but creates rounding
+residue to allocate; order-level keeps the invariant trivially auditable.
+
+## 5. Adopt spec-kit for spec-driven development
+
+**Date:** 2026-10-05
+**Context:** Andre wanted to try GitHub's spec-kit (github.com/github/spec-kit). The take-home
+grades "effective AI leverage" and crisp decision communication; spec-kit's artifacts (spec, plan,
+tasks) double as that documentation.
+**Decision:** Initialized spec-kit with the Claude Code integration (`specify init --here
+--integration claude`). Workflow: /speckit-constitution → /speckit-specify (fed from docs/PRD.md) →
+/speckit-plan → /speckit-tasks → /speckit-implement. Treat generated specs as drafts to prune —
+keep them lean given the 1–2 day time box.
+**Trade-off:** Adds process ceremony to a small vertical slice, and its output overlaps with our
+hand-written PRD (the spec will reference the PRD rather than duplicate it). In exchange we get a
+dependency-ordered task breakdown and a built-in paper trail for the AI-usage deliverable.
+
+## 6. Pricing lives on the order line, with catalog defaults as pre-fill
+
+**Date:** 2026-10-05
+**Context:** Andre questioned whether per-patient pricing was the right reading of the brief. It
+is — the brief says the provider sets the patient-facing price (or margin) per item while
+assembling an order, which matches how provider supplement marketplaces (e.g., Fullscript) work.
+**Decision:** The order line is the source of truth for price (and therefore the money split);
+the catalog carries a practice-level default price per supplement that pre-fills the order
+builder and can be overridden per line.
+**Trade-off:** Slightly more schema (a default-price column) in exchange for a realistic workflow
+— nobody invents a price from scratch per line — while keeping the split math anchored to what
+this patient actually paid.
+
+## 7. Acknowledge the conflict-of-interest openly in the submission
+
+**Date:** 2026-10-05
+**Context:** Andre flagged that provider-set, patient-invisible markups on products the provider
+also prescribes "seems scammy." It is a real, known conflict of interest in this market; it is
+also the existing status quo on third-party marketplaces, and this is cash-pay retail rather than
+insurance billing.
+**Decision:** We build the model the brief asks for, and the submission write-up includes a short
+section acknowledging the incentive structure and the design choices that lean toward
+transparency: itemized patient receipts, cent-exact auditable splits, append-only history. The
+margin-visible audit view is provider-facing; the patient receipt shows items and prices only.
+**Trade-off:** None technically — this is candor the rubric explicitly rewards ("honesty about
+limitations").
