@@ -234,3 +234,10 @@ over polish: this records where AI helped, where it misled, and where a human ov
 - **T027 scenario 5:** quickstart scenario 2 was driven headlessly against the public URL; the
   ledger balanced and the derived-origin checkout link pointed at the Railway domain with no
   `PUBLIC_WEB_ORIGIN` configured, as designed.
+- **Coverage review (post-delivery):** V8 coverage over `server/src`: money 100/100/100,
+  routes 99% lines, orders loader 100%, overall 85% lines. The uncovered remainder is the
+  entrypoint, env config, the no-op notifier (tests inject a recording one) and the migration
+  runner's CLI/duplicate-number paths. One real finding: the identity seam's `resolveCheckout`
+  was dead — checkout routes queried the token directly, bypassing the seam the README
+  advertises. Fixed by routing through it. Coverage didn't make the code correct; it caught a
+  design promise the code wasn't keeping.
