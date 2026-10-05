@@ -13,6 +13,9 @@ import { HttpError, mapDbError } from './errors.js';
 import { ACTING_PROVIDER_HEADER, type IdentityProvider, type Provider } from './seams/identity.js';
 import type { PaymentGateway } from './seams/payment.js';
 import type { Notifier } from './seams/notifier.js';
+import { catalogRoutes } from './routes/catalog.js';
+import { patientsRoutes } from './routes/patients.js';
+import { ordersRoutes } from './routes/orders.js';
 
 export interface AppDeps {
   sql: Db;
@@ -98,8 +101,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     return { ok: true, migrations };
   });
 
-  // ── Feature routes (registered as they land: T011 catalog/patients, T012 orders, T017 checkout,
-  //    T022 dashboard) ───────────────────────────────────────────────────────────────────────
+  // ── Feature routes ────────────────────────────────────────────────────────────────────────
+  await app.register(catalogRoutes);
+  await app.register(patientsRoutes);
+  await app.register(ordersRoutes);
 
   // ── Static SPA (production single image) + 404 envelope ──────────────────────────────────
   const staticDir = deps.staticDir ?? null;

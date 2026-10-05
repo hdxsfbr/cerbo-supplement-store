@@ -1,8 +1,8 @@
 // Thin Postgres client (porsager/postgres). No ORM: money SQL stays visible in the routes.
 //
 // Two deliberate choices (constitution I):
-//  * snake_case columns ⇄ camelCase properties via `postgres.camel`, so `total_cents` arrives
-//    as `totalCents` — the `Cents` suffix marks integer-cent fields in TS.
+//  * No column-name transform: rows keep their snake_case names (`total_cents`) because the
+//    REST contract is snake_case too (contracts/api.md). One name per field, DB → TS → JSON.
 //  * BIGINT (oid 20) is parsed into a JS number *only if* it is a safe integer; otherwise we
 //    throw rather than silently lose precision. Cent totals in this system are nowhere near
 //    2^53, so this is a tripwire, not an expected path.
@@ -22,7 +22,6 @@ export function parseBigintColumn(text: string): number {
 export function createDb(databaseUrl: string, opts: { max?: number } = {}): Db {
   return postgres(databaseUrl, {
     max: opts.max ?? 10,
-    transform: postgres.camel,
     types: {
       bigint: {
         to: 20,

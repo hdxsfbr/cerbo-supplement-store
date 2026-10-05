@@ -1,5 +1,5 @@
-// Shared server types. All money is integer cents (constitution I). Field names ending in
-// `Cents` are the TS mirror of DB columns ending in `_cents`.
+// Shared server types. All money is integer cents (constitution I). DB columns, TS row fields
+// and JSON wire fields share one snake_case name; money fields end in `_cents`.
 
 export type Cents = number;
 

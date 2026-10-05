@@ -1,0 +1,139 @@
+// Provider order routes: assemble (draft), replace lines, send (freeze + checkout link), list.
+// Lifecycle, item locking and COGS snapshotting are enforced by the DB (002_integrity.sql);
+// this file mostly translates HTTP ⇄ SQL and lets the SQLSTATE→HTTP map (errors.ts) speak.
+// The ledger/audit route lands with US2 (T018).
+
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import { idParam, parse, requireProvider } from '../app.js';
+import { HttpError, notFound, orderLocked } from '../errors.js';
+import { loadOrder, providerOrderView } from '../orders/load.js';
+
+const createOrderBody = z.object({ patient_id: z.number().int().positive() });
+
+const itemsBody = z.object({
+  items: z
+    .array(
+      z.object({
+        supplement_id: z.number().int().positive(),
+        quantity: z.number().int().positive().max(1_000),
+        unit_price_cents: z.number().int().min(0).max(100_000_000),
+      }),
+    )
+    .max(100),
+});
+
+export async function ordersRoutes(app: FastifyInstance): Promise<void> {
+  const { sql, notifier, publicWebOrigin } = app.deps;
+
+  const view = async (id: number, providerId: number) => {
+    const loaded = await loadOrder(sql, { id, provider_id: providerId });
+    if (!loaded) throw notFound('Order');
+    return providerOrderView(loaded, publicWebOrigin);
+  };
+
+  // POST /api/orders — create a draft for one of the provider's patients
+  app.post('/api/orders', async (req, reply) => {
+    const provider = await requireProvider(req);
+    const body = parse(createOrderBody, req.body);
+    const [patient] = await sql<{ id: number }[]>`
+      SELECT id FROM patients WHERE id = ${body.patient_id} AND provider_id = ${provider.id}`;
+    if (!patient) throw notFound('Patient');
+    const [created] = await sql<{ id: number }[]>`
+      INSERT INTO orders (provider_id, patient_id) VALUES (${provider.id}, ${patient.id})
+      RETURNING id`;
+    if (!created) throw new HttpError(500, 'internal_error', 'order insert returned no row');
+    return reply.status(201).send(await view(created.id, provider.id));
+  });
+
+  // PUT /api/orders/:id/items — replace the draft's lines (COGS snapshot taken by the DB)
+  app.put<{ Params: { id: string } }>('/api/orders/:id/items', async (req) => {
+    const provider = await requireProvider(req);
+    const id = idParam(req.params.id);
+    const body = parse(itemsBody, req.body);
+    const ids = body.items.map((i) => i.supplement_id);
+    if (new Set(ids).size !== ids.length) {
+      throw new HttpError(400, 'validation_error', 'items: duplicate supplement_id');
+    }
+
+    const [owned] = await sql<{ id: number }[]>`
+      SELECT id FROM orders WHERE id = ${id} AND provider_id = ${provider.id}`;
+    if (!owned) throw notFound('Order');
+
+    await sql.begin(async (tx) => {
+      // Lock the order row so concurrent edits serialise; the item trigger re-checks status.
+      await tx`SELECT id FROM orders WHERE id = ${id} FOR UPDATE`;
+      await tx`DELETE FROM order_items WHERE order_id = ${id}`; // CB003 if not draft
+      if (body.items.length > 0) {
+        // unit_cogs_cents is overwritten from the catalog by order_items_guard (DECISIONS #9);
+        // a value is required by NOT NULL at parse time, so pass 0 as a placeholder.
+        await tx`INSERT INTO order_items ${tx(
+          body.items.map((i) => ({
+            order_id: id,
+            supplement_id: i.supplement_id,
+            quantity: i.quantity,
+            unit_price_cents: i.unit_price_cents,
+            unit_cogs_cents: 0,
+          })),
+        )}`;
+      }
+    });
+    return view(id, provider.id);
+  });
+
+  // GET /api/orders/:id — order + lines + live split preview
+  app.get<{ Params: { id: string } }>('/api/orders/:id', async (req) => {
+    const provider = await requireProvider(req);
+    return view(idParam(req.params.id), provider.id);
+  });
+
+  // POST /api/orders/:id/send — draft → awaiting_payment; freezes total; issues checkout link
+  app.post<{ Params: { id: string } }>('/api/orders/:id/send', async (req) => {
+    const provider = await requireProvider(req);
+    const id = idParam(req.params.id);
+    const [owned] = await sql<{ id: number }[]>`
+      SELECT id FROM orders WHERE id = ${id} AND provider_id = ${provider.id}`;
+    if (!owned) throw notFound('Order');
+
+    // The trigger derives and freezes total_cents and requires ≥1 item (CB004 → 422). The
+    // status guard makes a repeat send a no-op at the DB, so we detect it and answer 409.
+    const sent = await sql`
+      UPDATE orders SET status = 'awaiting_payment' WHERE id = ${id} AND status = 'draft'`;
+    if (sent.count === 0) throw orderLocked('Order has already been sent');
+
+    const result = await view(id, provider.id);
+    await notifier.orderReadyForPayment({
+      orderId: id,
+      patient: result.patient,
+      checkoutUrl: result.checkout_url!,
+    });
+    return result;
+  });
+
+  // GET /api/orders — the acting provider's orders, newest first
+  app.get('/api/orders', async (req) => {
+    const provider = await requireProvider(req);
+    const orders = await sql<
+      {
+        id: number;
+        status: string;
+        patient_id: number;
+        patient_name: string;
+        total_cents: number;
+        item_count: number;
+        created_at: string;
+        sent_at: string | null;
+        paid_at: string | null;
+      }[]
+    >`
+      SELECT o.id, o.status, o.patient_id, p.name AS patient_name,
+             COALESCE(o.total_cents, (SELECT COALESCE(SUM(quantity * unit_price_cents), 0)
+                                      FROM order_items WHERE order_id = o.id))::bigint AS total_cents,
+             (SELECT COUNT(*)::int FROM order_items WHERE order_id = o.id) AS item_count,
+             o.created_at, o.sent_at, o.paid_at
+      FROM orders o JOIN patients p ON p.id = o.patient_id
+      WHERE o.provider_id = ${provider.id}
+      ORDER BY o.created_at DESC, o.id DESC`;
+    return { orders };
+  });
+}

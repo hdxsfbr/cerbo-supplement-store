@@ -77,3 +77,25 @@ over polish: this records where AI helped, where it misled, and where a human ov
   minute; I pattern-matched "CI" → GitHub Actions anyway. Andre flagged it; replaced with
   `.gitlab-ci.yml`, constitution patched to 1.0.1 (DECISIONS #11). Lesson: check the hosting
   platform before writing any platform-specific config.
+
+### 2026-10-05 — Phase 3 (US1: provider assembles an order)
+
+- **Split of labour:** server track (T011–T013) hands-on; the [P] UI track (T014: design
+  tokens + three components) delegated to one Sonnet 5 agent in an isolated git worktree with a
+  file-scoped brief and explicit done-criteria (typecheck/lint/format/build green, commit on its
+  branch). Reviewed and merged by the primary agent, not auto-merged.
+- **Plan override:** T004 said "camelCase mapping" for DB rows, but the REST contract is
+  snake_case. Dropped the transform so DB column, TS row field and JSON key share one name —
+  less code, nothing to mis-map. Noted here rather than in DECISIONS (it's plumbing, not design).
+- **Two bugs the integration tests caught before any UI existed:**
+  1. The seed's `INSERT … SELECT … FROM (VALUES …) JOIN providers` assigned patient ids in
+     join order, not list order — Zeus King was id 3, not 1. Fixed with an explicit ordinal +
+     `ORDER BY`. Worth knowing: Postgres gives no ordering guarantee for identity assignment
+     from an unordered SELECT.
+  2. `COALESCE(bigint, SUM(bigint))` is `numeric`, which the client returns as a string, so the
+     orders list leaked `"6400"` instead of `6400`. Cast to `::bigint`. The BIGINT tripwire in
+     client.ts only covers oid 20; numeric would have silently become a string on the wire.
+- **Third catch:** re-sending an already-sent order returned 200 because the DB trigger treats
+  `awaiting_payment → awaiting_payment` as a harmless no-op. Route now updates `WHERE status =
+  'draft'` and answers 409 on zero rows. The DB stays permissive for idempotent same-state
+  writes; the API is strict.

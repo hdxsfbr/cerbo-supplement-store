@@ -47,15 +47,15 @@ export class SeededIdentity implements IdentityProvider {
   async resolveCheckout(token: string): Promise<CheckoutIdentity | null> {
     if (!/^[A-Za-z0-9_-]{16,128}$/.test(token)) return null;
     const [row] = await this.sql<
-      { orderId: number; patientId: number; patientName: string; patientEmail: string | null }[]
+      { order_id: number; patient_id: number; patient_name: string; patient_email: string | null }[]
     >`
       SELECT o.id AS order_id, p.id AS patient_id, p.name AS patient_name, p.email AS patient_email
       FROM orders o JOIN patients p ON p.id = o.patient_id
       WHERE o.checkout_token = ${token}`;
     if (!row) return null;
     return {
-      orderId: row.orderId,
-      patient: { id: row.patientId, name: row.patientName, email: row.patientEmail },
+      orderId: row.order_id,
+      patient: { id: row.patient_id, name: row.patient_name, email: row.patient_email },
     };
   }
 }

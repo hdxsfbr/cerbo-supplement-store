@@ -6,17 +6,19 @@ INSERT INTO providers (name, npi) VALUES
   ('Dr. Marcus Welby',   '1234567890'),
   ('Dr. Sarah Anderson', '1098765432');
 
+-- ORDER BY ord: identity ids are assigned in insert order, and the demo relies on Zeus being #1.
 INSERT INTO patients (provider_id, name, email)
 SELECT p.id, v.name, v.email
 FROM (VALUES
-  ('Dr. Marcus Welby',   'Zeus King',          'zeus@olympus.example'),
-  ('Dr. Marcus Welby',   'Hera Elaine Queen',  'hera@olympus.example'),
-  ('Dr. Marcus Welby',   'Demeter W Harvest',  'demeter@olympus.example'),
-  ('Dr. Sarah Anderson', 'Apollo Ray Sun',     'apollo@olympus.example'),
-  ('Dr. Sarah Anderson', 'Athena Wise',        'athena@olympus.example'),
-  ('Dr. Sarah Anderson', 'Poseidon C. Waters', 'poseidon@olympus.example')
-) AS v(provider_name, name, email)
-JOIN providers p ON p.name = v.provider_name;
+  (1, 'Dr. Marcus Welby',   'Zeus King',          'zeus@olympus.example'),
+  (2, 'Dr. Marcus Welby',   'Hera Elaine Queen',  'hera@olympus.example'),
+  (3, 'Dr. Marcus Welby',   'Demeter W Harvest',  'demeter@olympus.example'),
+  (4, 'Dr. Sarah Anderson', 'Apollo Ray Sun',     'apollo@olympus.example'),
+  (5, 'Dr. Sarah Anderson', 'Athena Wise',        'athena@olympus.example'),
+  (6, 'Dr. Sarah Anderson', 'Poseidon C. Waters', 'poseidon@olympus.example')
+) AS v(ord, provider_name, name, email)
+JOIN providers p ON p.name = v.provider_name
+ORDER BY v.ord;
 
 --                                                     COGS    price   margin  stock
 INSERT INTO supplements (name, sku, unit_cogs_cents, default_price_cents, inventory_count) VALUES
