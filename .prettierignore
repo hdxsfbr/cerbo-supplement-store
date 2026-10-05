@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+package-lock.json
+.specify/
+.claude/
+docs/cerbo-ui-reference/
+*.md

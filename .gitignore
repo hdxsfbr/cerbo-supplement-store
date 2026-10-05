@@ -1,0 +1,24 @@
+# deps / build
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# logs / tmp
+*.log
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# editors
+.vscode/
+.idea/
+
+# claude worktrees
+.claude/worktrees/
