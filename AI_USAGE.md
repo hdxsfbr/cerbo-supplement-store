@@ -217,3 +217,9 @@ over polish: this records where AI helped, where it misled, and where a human ov
   against what shipped; all current.
 - Railway deployment requires Andre's account; the image is verified locally against the
   compose database (health, SPA, history fallback, derived origin).
+- **T027 local pass found a real bug the localhost runs had hidden:** `crypto.randomUUID()` is
+  undefined outside a secure context, so the patient Pay button threw on the Tailscale URL
+  (plain http, non-localhost). The delegated checkout code was correct on `localhost` and would
+  have been correct on the https Railway URL — it only broke on the LAN demo. Added a
+  `getRandomValues` fallback. Validation against a *different origin than the one you develop
+  on* is worth the minute it costs.

@@ -29,9 +29,17 @@ function getOrCreateIdempotencyKey(token: string): string {
   const storageKey = idempotencyKeyStorageKey(token);
   const existing = sessionStorage.getItem(storageKey);
   if (existing) return existing;
-  const fresh = crypto.randomUUID();
+  const fresh = newIdempotencyKey();
   sessionStorage.setItem(storageKey, fresh);
   return fresh;
+}
+
+// crypto.randomUUID only exists in secure contexts (https or localhost); a demo served over
+// plain http on a LAN/Tailscale address needs the getRandomValues fallback.
+function newIdempotencyKey(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function clearIdempotencyKey(token: string): void {
