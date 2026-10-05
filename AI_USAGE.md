@@ -142,3 +142,15 @@ over polish: this records where AI helped, where it misled, and where a human ov
   double-click) → reload shows receipt → provider audit shows `BALANCED: $66.00 of $66.00 ✓`
   with the half-cent case on purpose (6600¢ × 75 bps = 49.5¢ → 50¢). Screenshots in
   `docs/screenshots/`.
+
+### 2026-10-05 — Phase 5 (US3: dashboard + inventory)
+
+- Hands-on, no subagents. T022 passed first run: the aggregates are plain `SUM … FILTER` over
+  `ledger_entries`, so the reconciliation test (dashboard == Σ per-order audits) is checking a
+  structural identity rather than two implementations of the same arithmetic.
+- **Bug caught by the headless run, not by typecheck:** Vue casts `<input type="number">`
+  v-model values to `number`, so the inline inventory validator crashed on `raw.trim`. TypeScript
+  didn't flag it because the editing map was typed as `Record<number, string>` — a true
+  statement about my intent and a false one about Vue's behaviour. Normalised with `String()`.
+- Low-stock threshold (25) is a constant in `dashboard.ts`; a practice-level setting would be
+  the production version. Logged here rather than in DECISIONS since it is a UI heuristic.

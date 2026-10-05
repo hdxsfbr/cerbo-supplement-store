@@ -151,5 +151,6 @@ export interface DashboardSummary {
     margin_cents: number;
     fee_cents: number;
   }[];
-  inventory: (Supplement & { low: boolean; negative: boolean })[];
+  inventory: (Supplement & { units_sold: number; low: boolean; negative: boolean })[];
+  low_stock_threshold: number;
 }
