@@ -71,3 +71,8 @@ over polish: this records where AI helped, where it misled, and where a human ov
 - **Tooling note:** `prettier --check` was red on the T008/T009 commit (4 files) and I only
   noticed after committing; fixed in the T010 commit. CI runs `format:check`, so this would have
   been caught there too.
+- **AI misled, human caught it (Phase 2 review):** I scaffolded GitHub Actions CI although
+  `git remote -v` plainly shows a GitLab host. The remote was in my context from the first
+  minute; I pattern-matched "CI" → GitHub Actions anyway. Andre flagged it; replaced with
+  `.gitlab-ci.yml`, constitution patched to 1.0.1 (DECISIONS #11). Lesson: check the hosting
+  platform before writing any platform-specific config.

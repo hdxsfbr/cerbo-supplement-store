@@ -16,7 +16,7 @@ DB invariants; no UI test theater).
 
 - [X] T001 Scaffold monorepo: root package.json (npm workspaces), server/ (Fastify+TS+tsx+Vitest) and web/ (Vite+Vue3+TS+Pinia) packages, shared tsconfig/eslint/prettier, .gitignore, .env.example
 - [X] T002 [P] docker-compose.yml: postgres:16 (cerbo_store db, healthcheck), server (tsx watch, depends_on db), web (vite dev); Makefile/npm scripts for up/test
-- [X] T003 [P] GitHub Actions CI in .github/workflows/ci.yml: typecheck, lint, unit tests, integration tests against a Postgres service container
+- [X] T003 [P] GitLab CI in .gitlab-ci.yml: typecheck, lint, unit tests, integration tests against a Postgres service (repo is hosted on labs.gauntletai.com GitLab, not GitHub)
 
 ## Phase 2: Foundational (money core — blocks all stories)
 

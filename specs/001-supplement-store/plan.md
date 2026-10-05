@@ -113,7 +113,7 @@ web/
 
 docker-compose.yml           # postgres + server (tsx watch) + web (vite)
 Dockerfile                   # multi-stage: build web, build server, single runtime image
-.github/workflows/ci.yml     # lint, typecheck, tests (with Postgres service)
+.gitlab-ci.yml               # lint, typecheck, tests (with Postgres service)
 ```
 
 **Structure Decision**: Web application layout with `server/` and `web/` at the repo root —

@@ -1,6 +1,6 @@
 <!--
 Sync Impact Report
-- Version change: (none) → 1.0.0 (initial ratification)
+- Version change: 1.0.0 → 1.0.1 (PATCH: CI provider corrected to GitLab CI; repo is on GitLab, not GitHub)
 - Modified principles: n/a (initial adoption)
 - Added sections: Core Principles (I–VI), Stack & Scope Constraints, Development Workflow, Governance
 - Removed sections: none
@@ -65,7 +65,7 @@ feature reads as native to Cerbo, not pixel-perfect reproduction.
 - Monorepo: `web/` (Vue 3 + Vite + TS + Pinia), `server/` (Fastify + TS), SQL migrations in
   `server/` run against Postgres.
 - Local dev via docker-compose (Postgres + services); deployable as Docker image(s) to a public
-  URL (Railway/Fly or similar). CI via GitHub Actions.
+  URL (Railway/Fly or similar). CI via GitLab CI (the repo is hosted on GitLab).
 - Seed data provides providers, patients, and a small supplement catalog (with unit COGS); the
   Greek-god demo patients from Cerbo's own demo are the preferred seed flavor.
 - US-only, single currency (USD), Cerbo holds inventory.
@@ -87,4 +87,4 @@ removals/redefinitions, MINOR for new or materially expanded principles, PATCH f
 Compliance check is lightweight: before implement starts and before submission, verify the money
 invariant, seam documentation, and decision-log currency.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-05 | **Last Amended**: 2026-10-05
+**Version**: 1.0.1 | **Ratified**: 2026-10-05 | **Last Amended**: 2026-10-05

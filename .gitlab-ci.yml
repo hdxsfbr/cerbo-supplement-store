@@ -1,0 +1,44 @@
+# GitLab CI (the repo lives on labs.gauntletai.com). Two stages:
+#   check       — typecheck, lint, format, money-math unit tests, production build (no DB)
+#   integration — Vitest integration suite against a Postgres 16 service
+image: node:22-alpine
+
+stages: [check, integration]
+
+variables:
+  npm_config_cache: '$CI_PROJECT_DIR/.npm'
+
+cache:
+  key:
+    files: [package-lock.json]
+  paths: ['.npm/']
+
+.node-setup: &node-setup
+  before_script:
+    - npm ci --no-audit --no-fund
+
+check:
+  stage: check
+  <<: *node-setup
+  script:
+    - npm run typecheck
+    - npm run lint
+    - npm run format:check
+    - npm test
+    - npm run build
+
+integration:
+  stage: integration
+  <<: *node-setup
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    POSTGRES_USER: cerbo
+    POSTGRES_PASSWORD: cerbo
+    POSTGRES_DB: cerbo_store
+    # The harness creates a throwaway database per test file (DECISIONS.md #10); the service
+    # user is the owner/superuser, so CREATEDB is available.
+    DATABASE_URL: postgres://cerbo:cerbo@postgres:5432/cerbo_store
+  script:
+    - npm run test:integration

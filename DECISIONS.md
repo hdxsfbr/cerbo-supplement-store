@@ -35,7 +35,7 @@ feature slots into an existing mental model.
 **Context:** No tech restrictions in the brief. Cerbo's profile lists Vue, TypeScript/JavaScript,
 MySQL/Postgres, REST, AWS/Docker/CI-CD.
 **Decision:** Vue 3 + TS + Vite SPA, Fastify (TS) REST API, Postgres, docker-compose locally,
-Dockerized deploy, GitHub Actions CI. Plain SPA + REST server rather than Nuxt, because that mirrors
+Dockerized deploy, GitLab CI. Plain SPA + REST server rather than Nuxt, because that mirrors
 their actual architecture.
 **Trade-off:** A meta-framework like Nuxt or Next would deploy slightly faster, but matching the
 partner's real stack makes the work directly legible to their team.
@@ -129,3 +129,16 @@ real migrations (schema, invariants, seeds), and drops it in teardown. Test file
 **Trade-off:** A few hundred ms per file and a CREATEDB-capable role in CI; in return the tests
 exercise the exact migrations and triggers that production runs, with no test-only escape hatch
 in the money tables.
+
+## 11. CI runs on GitLab CI, not GitHub Actions
+
+**Date:** 2026-10-05
+**Context:** The planning docs and the T003 scaffold assumed GitHub Actions, but the repository is
+hosted on Gauntlet's GitLab (labs.gauntletai.com), where a `.github/workflows/` file is inert.
+Andre caught it at the Phase 2 review.
+**Decision:** Replace the workflow with `.gitlab-ci.yml` (same two jobs: `check` for typecheck/
+lint/format/unit tests/build, `integration` against a `postgres:16` service). Constitution
+bumped 1.0.0 → 1.0.1 (PATCH) to say "GitLab CI". The brief's "GitHub repository" deliverable is
+read as "git repository with source"; the GitLab URL is what gets submitted.
+**Trade-off:** None technically. The miss is logged in AI_USAGE.md as an example of the AI
+pattern-matching "CI" to GitHub Actions without checking `git remote`.
