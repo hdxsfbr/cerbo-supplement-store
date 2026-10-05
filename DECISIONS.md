@@ -142,3 +142,17 @@ bumped 1.0.0 → 1.0.1 (PATCH) to say "GitLab CI". The brief's "GitHub repositor
 read as "git repository with source"; the GitLab URL is what gets submitted.
 **Trade-off:** None technically. The miss is logged in AI_USAGE.md as an example of the AI
 pattern-matching "CI" to GitHub Actions without checking `git remote`.
+
+## 12. Inventory decrements at payment, may go negative (proposed — lands with T017)
+
+**Date:** 2026-10-05
+**Context:** The brief treats inventory as informational ("no stock levels required unless
+useful"), but the spec's edge case "inventory sold below zero: permitted but flagged" implies
+sales do move the count. Drawing the pay-flow sequence for `docs/ARCHITECTURE.md` forced the
+question of *when*.
+**Decision:** Decrement `supplements.inventory_count` by line quantity inside the same
+transaction that records the payment and ledger (not at send time — an unpaid order holds no
+stock). No floor: negative counts are allowed and flagged red on the dashboard. Provider edits
+via `PATCH /supplements/:id/inventory` set the absolute count.
+**Trade-off:** No reservation/oversell protection, which is fine for "Cerbo holds the inventory"
+at demo scale; a real version would reserve at send and release on expiry.
