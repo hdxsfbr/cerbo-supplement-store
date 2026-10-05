@@ -58,8 +58,9 @@ over polish: this records where AI helped, where it misled, and where a human ov
 
 - The compose/Railway DB role is a superuser, so the `REVOKE` on the ledger is defence in depth
   only; the trigger is the real guard. A separate app role is the production fix.
-- GitLab pipelines were queued with no runner for the whole session; CI steps were run locally
-  before every commit instead.
+- GitLab pipelines sat queued with no runner for most of the session (CI steps were run locally
+  before every commit). Resolved at the end by assigning the project the same self-hosted Docker
+  runner Andre's other GitLab projects use; first run green (check 2 min, integration 42 s).
 - The fee policy lives in two places (SQL and TS) on purpose; changing it is a migration plus a
   code change.
 
