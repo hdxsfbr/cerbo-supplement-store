@@ -38,8 +38,8 @@ API + UI; order locked after send.
 - [X] T012 [US1] Routes in server/src/routes/orders.ts: POST /api/orders, PUT /api/orders/:id/items (snapshots COGS, 409 unless draft), GET /api/orders/:id (with live split preview via T008), POST /api/orders/:id/send (422 if empty; freezes total; returns checkout_url), GET /api/orders list
 - [X] T013 [US1] Integration tests in server/test/integration/orders.test.ts: draft→awaiting_payment flow, COGS snapshot immune to catalog change, item mutation on sent order → 409 order_locked, empty send → 422
 - [X] T014 [P] [US1] Cerbo design tokens in web/src/styles/cerbo.css per docs/cerbo-ui-reference/DESIGN-NOTES.md (panel-header palette, dense zebra tables, red charges, chart chrome) + shared components web/src/components/CerboPanel.vue, MoneyInput.vue (cents-safe), SplitPreview.vue
-- [ ] T015 [US1] web/src/ app shell: router.ts (provider routes + /pay/:token), stores/session.ts (acting provider), stores/orderDraft.ts, api client web/src/api.ts (cents passthrough, error envelope)
-- [ ] T016 [US1] OrderBuilder.vue in web/src/views/: patient picker, supplement add with default-price pre-fill + per-line override, below-COGS warning, live split preview, send → shows checkout URL (Notifier stub surface)
+- [X] T015 [US1] web/src/ app shell: router.ts (provider routes + /pay/:token), stores/session.ts (acting provider), stores/orderDraft.ts, api client web/src/api.ts (cents passthrough, error envelope)
+- [X] T016 [US1] OrderBuilder.vue in web/src/views/: patient picker, supplement add with default-price pre-fill + per-line override, below-COGS warning, live split preview, send → shows checkout URL (Notifier stub surface)
 
 ## Phase 4: User Story 2 — Patient pays, split recorded (P1)
 

@@ -23,15 +23,22 @@ function toDisplay(cents: number | null | undefined): string {
 
 const raw = ref(toDisplay(model.value));
 const invalid = ref(false);
+const focused = ref(false);
 
-// Keep the local text in sync when the model changes from outside this component.
+// Keep the local text in sync when the model changes from outside this component — but never
+// while the user is typing, or "3" would be rewritten to "3.00" under their cursor.
 watch(
   () => model.value,
   (next) => {
+    if (focused.value) return;
     raw.value = toDisplay(next);
     invalid.value = false;
   },
 );
+
+function onFocus(): void {
+  focused.value = true;
+}
 
 function onInput(event: Event): void {
   const text = (event.target as HTMLInputElement).value;
@@ -53,6 +60,7 @@ function onInput(event: Event): void {
 }
 
 function onBlur(): void {
+  focused.value = false;
   if (invalid.value) return;
   raw.value = toDisplay(model.value);
 }
@@ -71,6 +79,7 @@ function onBlur(): void {
       :aria-invalid="invalid"
       :value="raw"
       @input="onInput"
+      @focus="onFocus"
       @blur="onBlur"
     />
   </span>

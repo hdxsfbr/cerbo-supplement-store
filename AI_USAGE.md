@@ -99,3 +99,20 @@ over polish: this records where AI helped, where it misled, and where a human ov
   `awaiting_payment → awaiting_payment` as a harmless no-op. Route now updates `WHERE status =
   'draft'` and answers 409 on zero rows. The DB stays permissive for idempotent same-state
   writes; the API is strict.
+- **T014 review:** the delegated work came back clean (tokens, three components, all checks
+  green) with one bug found on review — `formatCents(…, { sign: 'never' })` still printed the
+  minus sign. Fixed in a follow-up commit; the agent's commit was cherry-picked as-is so the
+  history shows what it produced. Its palette hex values were eyeballed from the screenshots,
+  which is the right call given DESIGN-NOTES names colours but gives no swatches.
+- **T015/T016 verification method:** the harness's embedded preview browser could not reach
+  the local dev server, so I drove headless Chrome with a puppeteer script instead (start
+  order → add two lines → override a price → send → screenshot). That caught two real bugs
+  (open-orders list not refreshing after creating a draft; stale dev DB from before the seed
+  fix) and one false alarm: a "3.0026.50" value that looked like MoneyInput reformatting under
+  the cursor. A keystroke trace showed puppeteer's triple-click simply hadn't selected the text;
+  with select-all the input behaved. I had already hardened MoneyInput against mid-typing
+  reformat (skip the model watcher while focused) before finding that out — kept it, it's
+  correct regardless. Screenshots: `docs/screenshots/order-builder-*.png`.
+- **Scope call:** spec US1 scenario 2 ("set a margin % instead of a price") was implemented as
+  a per-line margin % input that derives the price with integer math rounded up to the cent
+  (`priceForMarginBps`). Gross margin is defined on price, before the platform fee.

@@ -117,3 +117,16 @@ export function formatBps(bps: number): string {
   const decimal = absTenths % 10;
   return `${sign}${whole}.${decimal}%`;
 }
+
+/**
+ * Price that yields a target gross margin (margin = (price − cogs) / price) given in basis
+ * points, rounded UP to the next cent so the realised margin is never below the target.
+ * Integer math: price = ceil(cogs × 10000 / (10000 − bps)). Returns null for bps ≥ 10000.
+ */
+export function priceForMarginBps(cogs_cents: number, margin_bps: number): number | null {
+  if (!Number.isSafeInteger(cogs_cents) || cogs_cents < 0) return null;
+  if (!Number.isSafeInteger(margin_bps) || margin_bps >= BPS_DENOMINATOR) return null;
+  const denominator = BPS_DENOMINATOR - margin_bps;
+  const numerator = cogs_cents * BPS_DENOMINATOR;
+  return Math.ceil(numerator / denominator);
+}

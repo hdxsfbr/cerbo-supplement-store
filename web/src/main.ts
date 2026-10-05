@@ -1,6 +1,8 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
+import { router } from './router';
+import './styles/base.css';
+import './styles/cerbo.css';
 
-// Router + stores land in T015; this is the minimal bootable shell for the scaffold.
-createApp(App).use(createPinia()).mount('#app');
+createApp(App).use(createPinia()).use(router).mount('#app');

@@ -1,0 +1,20 @@
+/* Reset shared by both surfaces. Surface-specific looks live in cerbo.css / portal.css. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+}
+body {
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input,
+select {
+  font: inherit;
+}
