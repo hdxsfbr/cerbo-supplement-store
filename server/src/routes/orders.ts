@@ -104,12 +104,23 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
     if (sent.count === 0) throw orderLocked('Order has already been sent');
 
     const result = await view(id, provider.id, publicOrigin(req));
-    await notifier.orderReadyForPayment({
-      orderId: id,
-      patient: result.patient,
-      checkoutUrl: result.checkout_url!,
-    });
-    return result;
+
+    // Notification is best-effort and happens AFTER the transition committed. The checkout link
+    // is in this response regardless, so a notifier outage must not read as a failed send (the
+    // transition cannot be retried — it already happened). A real adapter would enqueue into an
+    // outbox table inside the send transaction and deliver asynchronously (HDX-89).
+    let notified = true;
+    try {
+      await notifier.orderReadyForPayment({
+        orderId: id,
+        patient: result.patient,
+        checkoutUrl: result.checkout_url!,
+      });
+    } catch (err) {
+      notified = false;
+      req.log.error({ err, orderId: id }, 'notifier failed after send; order is payable');
+    }
+    return { ...result, notified };
   });
 
   // GET /api/orders/:id/ledger — audit view of a paid order: every cent, straight from the ledger

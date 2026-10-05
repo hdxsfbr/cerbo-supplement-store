@@ -199,12 +199,45 @@ describe('order assembly → send (T012)', () => {
     expect(get.body.total_cents).toBe(6700);
   });
 
+  it('send still succeeds (200, notified:false) when the notifier throws; order is payable (HDX-89)', async () => {
+    const created = await api(ctx.app, 'POST', '/api/orders', {
+      provider: WELBY,
+      body: { patient_id: 3 },
+    });
+    await api(ctx.app, 'PUT', `/api/orders/${created.body.id}/items`, {
+      provider: WELBY,
+      body: { items: [{ supplement_id: 4, quantity: 1, unit_price_cents: 4500 }] },
+    });
+    ctx.notifier.failNext = true;
+    const res = await api(ctx.app, 'POST', `/api/orders/${created.body.id}/send`, {
+      provider: WELBY,
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('awaiting_payment');
+    expect(res.body.notified).toBe(false);
+    expect(res.body.checkout_url).toMatch(/\/pay\/[0-9a-f]{32}$/);
+    // The link works and the order is locked exactly as a normally-sent order would be.
+    const token = res.body.checkout_url.split('/pay/')[1];
+    expect((await api(ctx.app, 'GET', `/api/checkout/${token}`)).status).toBe(200);
+    const again = await api(ctx.app, 'POST', `/api/orders/${created.body.id}/send`, {
+      provider: WELBY,
+    });
+    expect(again.status).toBe(409);
+    // A normal send reports notified:true
+    expect(ctx.notifier.sent.at(-1)?.orderId).not.toBe(created.body.id);
+  });
+
   it('GET /api/orders lists the provider’s orders newest first with totals', async () => {
     const res = await api(ctx.app, 'GET', '/api/orders', { provider: WELBY });
     expect(res.status).toBe(200);
-    expect(res.body.orders).toHaveLength(2);
-    expect(res.body.orders[0]).toMatchObject({ status: 'draft', item_count: 0, total_cents: 0 });
-    expect(res.body.orders[1]).toMatchObject({
+    expect(res.body.orders).toHaveLength(3);
+    expect(res.body.orders[0]).toMatchObject({
+      status: 'awaiting_payment',
+      item_count: 1,
+      total_cents: 4500,
+    });
+    expect(res.body.orders[1]).toMatchObject({ status: 'draft', item_count: 0, total_cents: 0 });
+    expect(res.body.orders[2]).toMatchObject({
       id: orderId,
       status: 'awaiting_payment',
       patient_name: 'Zeus King',
