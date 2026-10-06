@@ -1,9 +1,13 @@
-# GitLab CI (the repo lives on labs.gauntletai.com). Two stages:
-#   check       — typecheck, lint, format, money-math unit tests, production build (no DB)
+# GitLab CI (the repo lives on labs.gauntletai.com). Three stages:
+#   check       — typecheck, lint, format, unit tests (server + web), production build (no DB)
 #   integration — Vitest integration suite against a Postgres 16 service
+#   deploy      — on main only, after both pass: `railway up` to the Railway `app` service.
+#                 Railway has no native GitLab integration, so CI pushes the build. Needs the
+#                 masked CI variable RAILWAY_TOKEN (project token, Railway → project settings →
+#                 Tokens). The job is skipped, not failed, when the variable is absent.
 image: node:22-alpine
 
-stages: [check, integration]
+stages: [check, integration, deploy]
 
 variables:
   npm_config_cache: '$CI_PROJECT_DIR/.npm'
@@ -42,3 +46,22 @@ integration:
     DATABASE_URL: postgres://cerbo:cerbo@postgres:5432/cerbo_store
   script:
     - npm run test:integration
+
+deploy:
+  stage: deploy
+  needs: [check, integration]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RAILWAY_TOKEN'
+  variables:
+    GIT_DEPTH: 1
+  before_script:
+    - npm i -g @railway/cli@latest --no-audit --no-fund
+  script:
+    # --ci streams build logs and exits non-zero if the deployment fails, so a bad build fails
+    # the pipeline instead of silently leaving the old deployment up.
+    - railway up --service app --ci -m "ci: $CI_COMMIT_SHORT_SHA $CI_COMMIT_TITLE"
+    - sleep 20
+    - 'wget -qO- https://app-production-500d.up.railway.app/api/health | grep -q ok'
+  environment:
+    name: production
+    url: https://app-production-500d.up.railway.app
