@@ -271,3 +271,11 @@ table) are exactly the tests I should have written first. Also: two of my own do
 described code I had changed since writing them. Comments need the same re-read as code.
 
 Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green on GitLab.
+- **UI copy cleanup (Andre's call, 2026-10-05 evening):** the provider screens carried
+  implementation commentary — "(the "email" — notifier stub)", "rounded half-up" footers,
+  "COGS + margin + fee = total ✓", "the server confirms the split on save", a column name in a
+  label, and inert Medications/Pellets/IVs tabs. I had written those for the reviewer, not the
+  provider; Andre read them as placeholder text. Removed; invariant/reconciliation lines now
+  render only when they fail. The audit view keeps the fee computation because that is its job.
+  Recorded as a standing rule in `~/.claude/CLAUDE.md`: no dev commentary in product UI, and
+  clean up any demo scaffolding before reporting done.

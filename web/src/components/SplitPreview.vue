@@ -88,8 +88,8 @@ const invariantHolds = computed(
       <span v-if="marginBps !== null">({{ formatBps(marginBps) }})</span>
     </div>
 
-    <p class="cerbo-muted cerbo-split-preview__invariant">
-      COGS + margin + fee = total {{ invariantHolds ? '✓' : '✗' }}
+    <p v-if="!invariantHolds" class="cerbo-split-preview__invariant">
+      Split does not add up to the total — please reload.
     </p>
   </div>
 </template>
@@ -108,6 +108,8 @@ const invariantHolds = computed(
 .cerbo-split-preview__invariant {
   margin: 2px 0 0;
   text-align: center;
+  color: var(--cerbo-charge);
+  font-weight: 700;
 }
 
 .cerbo-split-preview--compact .cerbo-table td,

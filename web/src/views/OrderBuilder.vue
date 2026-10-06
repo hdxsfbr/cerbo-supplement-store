@@ -150,9 +150,6 @@ const statusLabel: Record<string, string> = {
 };
 
 const split = computed(() => (draft.dirty || !draft.order ? draft.preview : draft.order.split));
-const feeMemo = computed(() =>
-  !draft.dirty && draft.order ? draft.order.split.memos.platform_fee : undefined,
-);
 const belowCogsLines = computed(() =>
   draft.lines.filter((l) => l.unit_price_cents < l.unit_cogs_cents).map((l) => l.name),
 );
@@ -213,13 +210,6 @@ function fmtDate(iso: string | null): string {
           <template #actions>
             <span v-if="draft.locked" class="cerbo-chip--warn">locked</span>
           </template>
-
-          <div class="cerbo-tabs">
-            <span class="cerbo-tab">Medications</span>
-            <span class="cerbo-tab cerbo-tab--active">Supplements</span>
-            <span class="cerbo-tab">Pellets</span>
-            <span class="cerbo-tab">IVs</span>
-          </div>
 
           <div v-if="draft.order && !draft.locked" class="ob__row ob__add">
             <select v-model="selectedSupplementId" class="cerbo-select" aria-label="Supplement">
@@ -332,10 +322,7 @@ function fmtDate(iso: string | null): string {
               </tr>
             </tbody>
           </table>
-          <p v-else-if="draft.order" class="cerbo-muted ob__empty">
-            No supplements yet. Prices pre-fill from the practice default and can be overridden per
-            line.
-          </p>
+          <p v-else-if="draft.order" class="cerbo-muted ob__empty">No supplements yet.</p>
 
           <p v-if="belowCogsLines.length" class="ob__warn">
             Priced below cost: {{ belowCogsLines.join(', ') }} — gross margin on
@@ -394,28 +381,17 @@ function fmtDate(iso: string | null): string {
 
       <!-- ── Right column: billing preview + send ──────────────────────────────────── -->
       <div class="ob__col ob__col--side">
-        <CerboPanel
-          title="Billing (Supplement Store)"
-          color="amber"
-          :footer="
-            draft.order
-              ? `Platform fee ${PLATFORM_FEE_BPS} bps of order total · rounded half-up`
-              : ''
-          "
-        >
+        <CerboPanel title="Billing (Supplement Store)" color="amber">
           <SplitPreview
             :total-cents="split.total_cents"
             :cogs-cents="split.cogs_cents"
             :fee-cents="split.fee_cents"
             :margin-cents="split.margin_cents"
-            :fee-memo="feeMemo"
-            title="Where every cent goes"
+            title="Order split"
             margin-label="Provider margin (after fee)"
             compact
           />
-          <p v-if="draft.dirty" class="cerbo-muted ob__hint">
-            Preview (unsaved) — the server confirms the split on save.
-          </p>
+          <p v-if="draft.dirty" class="cerbo-muted ob__hint">Unsaved changes</p>
 
           <div class="ob__send">
             <button
@@ -435,10 +411,7 @@ function fmtDate(iso: string | null): string {
           </div>
 
           <div v-if="draft.order?.checkout_url" class="ob__link">
-            <div class="ob__link-title">
-              Payment link
-              <span class="cerbo-muted">(the "email" — notifier stub)</span>
-            </div>
+            <div class="ob__link-title">Payment link</div>
             <code class="ob__link-url">{{ draft.order.checkout_url }}</code>
             <div class="ob__row">
               <button class="cerbo-btn" @click="copyLink">
@@ -455,8 +428,7 @@ function fmtDate(iso: string | null): string {
               >
             </div>
             <p class="cerbo-muted">
-              Sent {{ fmtDate(draft.order.sent_at) }} · order is locked; the patient pays sticker
-              price.
+              Sent {{ fmtDate(draft.order.sent_at) }}. Share this link with the patient.
             </p>
           </div>
         </CerboPanel>

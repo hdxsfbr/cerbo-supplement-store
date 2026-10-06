@@ -97,9 +97,7 @@ function fmtDateTime(iso: string | null): string {
             <tr>
               <td>{{ fmtDate(ledger.paid_at) }}</td>
               <td><strong>Credit / Payment (+)</strong></td>
-              <td class="cerbo-muted">
-                patient paid sticker price · {{ ledger.payment.gateway_ref }}
-              </td>
+              <td class="cerbo-muted">payment ref {{ ledger.payment.gateway_ref }}</td>
               <td class="cerbo-table__num cerbo-money cerbo-money--credit">
                 ({{ formatCents(ledger.payment.amount_cents) }})
               </td>
@@ -140,7 +138,7 @@ function fmtDateTime(iso: string | null): string {
               </td>
             </tr>
             <tr>
-              <td colspan="3">Amount paid (orders.total_cents)</td>
+              <td colspan="3">Amount paid</td>
               <td class="cerbo-table__num cerbo-money">{{ formatCents(ledger.total_cents) }}</td>
             </tr>
           </tfoot>
@@ -177,17 +175,12 @@ function fmtDateTime(iso: string | null): string {
               </tr>
             </tbody>
           </table>
-          <p class="cerbo-muted">
-            The database re-asserts this at commit: three entries, one per type, summing to the
-            amount paid, with the fee equal to ⌊(total × 75 + 5000) ÷ 10000⌋. Ledger rows are
-            append-only.
-          </p>
         </div>
       </CerboPanel>
 
       <div class="audit__side">
         <CerboPanel
-          title="Order Lines (COGS snapshot)"
+          title="Order Lines"
           color="maroon"
           :footer="`Paid ${fmtDateTime(ledger.paid_at)}`"
         >

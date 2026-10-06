@@ -87,7 +87,7 @@ function fmtDate(iso: string | null): string {
       <div class="dash__tiles">
         <CerboPanel title="Gross sales (GMV)" color="amber">
           <div class="dash__tile-value">{{ formatCents(data.gross_cents) }}</div>
-          <div class="cerbo-muted">{{ data.orders_paid }} paid order(s) · what patients paid</div>
+          <div class="cerbo-muted">{{ data.orders_paid }} paid order(s)</div>
         </CerboPanel>
         <CerboPanel title="Provider margin" color="green">
           <div class="dash__tile-value" :class="{ 'cerbo-money--charge': data.margin_cents < 0 }">
@@ -100,20 +100,18 @@ function fmtDate(iso: string | null): string {
         </CerboPanel>
         <CerboPanel title="Cost of goods" color="maroon">
           <div class="dash__tile-value">{{ formatCents(data.cogs_cents) }}</div>
-          <div class="cerbo-muted">snapshotted COGS of sold units</div>
+          <div class="cerbo-muted">cost of units sold</div>
         </CerboPanel>
         <CerboPanel title="Platform fees (75 bps)" color="black">
           <div class="dash__tile-value">{{ formatCents(data.fees_cents) }}</div>
-          <div class="cerbo-muted">Cerbo's cut · rounded half-up per order</div>
+          <div class="cerbo-muted">75 bps of each order</div>
         </CerboPanel>
       </div>
 
-      <div class="dash__recon" :class="{ 'dash__recon--bad': !reconciles }">
-        COGS {{ formatCents(data.cogs_cents) }} + margin {{ formatCents(data.margin_cents) }} + fees
-        {{ formatCents(data.fees_cents) }} =
-        {{ formatCents(data.cogs_cents + data.margin_cents + data.fees_cents) }}
-        {{ reconciles ? '= gross ✓' : '≠ gross ✗' }}
-        <span class="cerbo-muted">· all figures are sums over the append-only ledger</span>
+      <div v-if="!reconciles" class="dash__recon dash__recon--bad">
+        Totals do not reconcile: COGS {{ formatCents(data.cogs_cents) }} + margin
+        {{ formatCents(data.margin_cents) }} + fees {{ formatCents(data.fees_cents) }} ≠ gross
+        {{ formatCents(data.gross_cents) }}. Please reload.
       </div>
 
       <div class="dash__grid">
@@ -188,7 +186,7 @@ function fmtDate(iso: string | null): string {
         <CerboPanel
           title="Inventory"
           color="navy"
-          :footer="`Low-stock threshold ${data.low_stock_threshold} · stock moves when an order is paid · may go negative`"
+          :footer="`Low-stock threshold: ${data.low_stock_threshold}`"
         >
           <template #actions>
             <span v-if="inventoryAlerts" class="cerbo-chip--warn"
