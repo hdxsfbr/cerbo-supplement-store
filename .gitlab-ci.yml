@@ -59,7 +59,7 @@ deploy:
   script:
     # --ci streams build logs and exits non-zero if the deployment fails, so a bad build fails
     # the pipeline instead of silently leaving the old deployment up.
-    - railway up --service app --ci -m "ci: $CI_COMMIT_SHORT_SHA $CI_COMMIT_TITLE"
+    - 'railway up --service app --ci -m "deploy $CI_COMMIT_SHORT_SHA"'
     - sleep 20
     - 'wget -qO- https://app-production-500d.up.railway.app/api/health | grep -q ok'
   environment:
