@@ -8,7 +8,7 @@ integer cents, in an append-only ledger whose invariants are enforced by the dat
 - **Live demo:** https://app-production-500d.up.railway.app (Railway, single image + managed Postgres; `GET /api/health` reports migration status)
 - **Stack:** Vue 3 + TypeScript SPA · Fastify (TypeScript) REST API · PostgreSQL 16 · Docker
   (mirrors Cerbo's own stack — [DECISIONS.md #3](DECISIONS.md))
-- **Docs:** [Architecture + glossary](docs/ARCHITECTURE.md) · [PRD](docs/PRD.md) ·
+- **Docs:** [Architecture + glossary](ARCHITECTURE.md) · [Key metrics](KEY_METRICS.md) · [Scaling analysis](SCALING.md) · [PRD](docs/PRD.md) ·
   [Decision log](DECISIONS.md) · [AI usage log](AI_USAGE.md) ·
   [Spec, plan, data model, API contracts, tasks](specs/001-supplement-store/)
 
@@ -147,7 +147,7 @@ None of that is in this slice, and the seam comment in `server/src/seams/payment
 patient checkout in a plain portal style (`portal.css`). `server/` is a Fastify API with raw SQL
 through the `postgres` driver (no ORM on money paths); routes are thin, the database holds the
 invariants. One Docker image serves both (`Dockerfile`). Diagrams, the pay-flow sequence, and a
-glossary are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+glossary are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```
 server/src/db/migrations/     001 schema · 002 integrity triggers · 003 seed

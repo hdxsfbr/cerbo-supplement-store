@@ -148,7 +148,7 @@ pattern-matching "CI" to GitHub Actions without checking `git remote`.
 **Date:** 2026-10-05
 **Context:** The brief treats inventory as informational ("no stock levels required unless
 useful"), but the spec's edge case "inventory sold below zero: permitted but flagged" implies
-sales do move the count. Drawing the pay-flow sequence for `docs/ARCHITECTURE.md` forced the
+sales do move the count. Drawing the pay-flow sequence for `ARCHITECTURE.md` forced the
 question of *when*.
 **Decision:** Decrement `supplements.inventory_count` by line quantity inside the same
 transaction that records the payment and ledger (not at send time — an unpaid order holds no

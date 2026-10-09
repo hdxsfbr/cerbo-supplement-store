@@ -4,9 +4,24 @@ Vertical slice of an in-house supplement store that "lives inside" Cerbo's EHR. 
 with two visual surfaces, one Fastify REST API, one Postgres database that is the system of record
 for money. Everything external is behind a documented seam with a fake implementation.
 
+Companion documents: [KEY_METRICS.md](KEY_METRICS.md) (what we measure and how it's derived from
+the ledger) and [SCALING.md](SCALING.md) (what breaks at 10 → 100 000 users and what changes).
+
+## Contents
+
+1. [System overview](#system-overview)
+2. [Request flows](#request-flows) — assemble, send, pay, audit, dashboard
+3. [Data model and consistency](#data-model-and-consistency)
+4. [Security and privacy model](#security-and-privacy-model)
+5. [Tenancy](#tenancy) — how this fits Cerbo's per-practice deployment
+6. [Operability](#operability) — config, migrations, health, logs, CI/CD
+7. [Deployment](#deployment)
+8. [Where things live](#where-things-live)
+9. [Glossary](#glossary)
+
 ## System overview
 
-![System overview](architecture/overview.png)
+![System overview](docs/architecture/overview.png)
 
 ```mermaid
 flowchart LR
@@ -84,6 +99,22 @@ flowchart LR
   NT -.->|production| MAIL
 ```
 
+## Request flows
+
+Every provider route resolves the acting provider through the identity seam (header today, EHR
+session in production) and scopes every query by `provider_id`. Every patient route resolves a
+capability token (checkout token per order, portal token per patient). No route trusts an id
+from the client without that scoping.
+
+| Flow | Route(s) | Transaction shape | Enforced by |
+|---|---|---|---|
+| Assemble | `POST /orders`, `PUT /orders/:id/items` | one tx per PUT: delete lines, insert lines; COGS snapshot taken by trigger | `order_items_guard` (draft only, snapshot), `orders_guard_insert` (patient ∈ provider) |
+| Send | `POST /orders/:id/send` | one `UPDATE … WHERE status='draft'`; notifier runs after commit, best-effort | `orders_guard_transition` (≥1 line, total frozen); API answers 409 on repeat |
+| Pay | `POST /checkout/:token/pay` | one tx: `SELECT … FOR UPDATE`, gateway charge, payment row, status → paid, 3 ledger rows, stock decrement | deferred `assert_order_split()` at COMMIT; `payments.order_id UNIQUE`; row lock serialises races |
+| Audit | `GET /orders/:id/ledger` | read-only | 409 unless paid; reads the ledger, never recomputes |
+| Dashboard | `GET /dashboard/summary` | one `REPEATABLE READ READ ONLY` tx, three reads | sums over `ledger_entries`, so tiles ≡ Σ audits |
+| Portal | `GET /portal/:token` | read-only | token → patient; invoices and messages scoped to that patient |
+
 ## The money path (US2: patient pays)
 
 One request, one database transaction, verified at commit by the database itself. The gateway
@@ -91,7 +122,7 @@ call sits inside the transaction because the shipped gateway is a synchronous fa
 "The payment boundary, honestly" for what changes with a real processor (pending row, call
 outside the lock, webhook reconciliation).
 
-![Pay sequence](architecture/pay-sequence.png)
+![Pay sequence](docs/architecture/pay-sequence.png)
 
 ```mermaid
 sequenceDiagram
@@ -126,9 +157,86 @@ sequenceDiagram
   end
 ```
 
+## Data model and consistency
+
+Seven tables (see [docs/data-model](specs/001-supplement-store/data-model.md) for columns):
+`providers`, `patients`, `supplements`, `orders`, `order_items`, `payments`, `ledger_entries`,
+plus `notifications` (portal messages / email nudges). Every money column is `BIGINT` cents.
+
+**Source of truth per concern**
+
+| Concern | Truth | Derived copies |
+|---|---|---|
+| What the patient owes / paid | `orders.total_cents` (frozen at send), `payments.amount_cents` | builder preview (client mirror), checkout view |
+| Where each cent went | `ledger_entries` (append-only) | audit view, dashboard sums, per-order rows in `GET /orders/:id` |
+| Cost basis of a sold unit | `order_items.unit_cogs_cents` (snapshot) | the catalog's `unit_cogs_cents` is *current* cost, not history |
+| Stock | `supplements.inventory_count` | `units_sold` is recomputed from paid order lines |
+
+**Consistency model.** All writes are single-transaction and the database holds the invariants:
+
+- *Lifecycle*: `draft → awaiting_payment → paid`, no other transitions, enforced by `BEFORE UPDATE`
+  trigger; a paid order and its lines are immutable; history tables refuse `TRUNCATE`.
+- *Split invariant*: a `DEFERRABLE INITIALLY DEFERRED` constraint trigger fires from `payments`,
+  `orders` (on → paid) and `ledger_entries`, and at COMMIT asserts: exactly one entry per type, sum
+  = total, one payment of equal amount referenced by all entries, COGS = Σ snapshots, fee = policy.
+- *Idempotency*: `payments.idempotency_key UNIQUE` and `payments.order_id UNIQUE`; the pay route
+  locks the order row so concurrent replays serialise and return the original receipt.
+- *Reads*: dashboard reads share one snapshot; everything else is single-statement.
+
+What is **not** guaranteed and why: stock is not reserved at send (an order can oversell; flagged,
+not blocked — DECISIONS #12); notifications are best-effort after commit (an outbox would make
+them transactional — HDX-89); the gateway call sits inside the pay transaction because the fake
+is synchronous (a real processor moves it out — README → "The payment boundary, honestly").
+
+## Security and privacy model
+
+- **Identity**: provider = `x-acting-provider` header (stand-in for the EHR session); patient =
+  32-hex capability token per order (`/pay/<t>`) and per patient (`/portal/<t>`), 122 bits of
+  entropy, generated by Postgres. Tokens do not expire in this slice; production would use the
+  portal session or signed, expiring links.
+- **Authorisation**: every provider query is scoped by `provider_id`; cross-provider access returns
+  404, not 403 (no existence leak). Patient views omit COGS, margin, fee (DECISIONS #7).
+- **Card data**: the number never leaves the browser. A fake tokenizer sends `{token, brand,
+  last4}`; only brand and last four are stored. The real version is Stripe Elements or equivalent
+  (PCI SAQ-A scope).
+- **Input validation**: Zod on every body; integer-cent bounds; duplicate line detection.
+- **Database privileges**: `UPDATE/DELETE/TRUNCATE` revoked on the ledger and history tables in
+  addition to triggers. The deployed role is still the owner (superuser on Railway's Postgres), so
+  this is defence in depth; a least-privilege app role is listed in SCALING.md.
+- **Not in scope**: real authentication, CSRF (no cookies today), rate limiting, PHI handling
+  beyond "don't leak the split to the patient". See SCALING.md for where each lands.
+
+## Tenancy
+
+Cerbo's public API is addressed per practice: `https://{tenant}.md-hq.com/api/v1/` with API
+credentials per practice (docs.cer.bo). Whether each tenant is a separate deployment or one shared
+application routed by subdomain is not public. This slice is tenancy-neutral:
+
+- Rows are already scoped by `provider_id`, and `patients.provider_id` pins each patient to one
+  practice. Adding a `practice_id` (tenant) column to `providers`, `supplements`, `orders` and
+  `notifications`, plus a composite index and row-level security, turns the same schema into a
+  shared multi-tenant one.
+- Per-tenant instances need no schema change: deploy the image per practice with its own
+  `DATABASE_URL`, exactly as the Railway deploy does now.
+
+SCALING.md discusses which model makes sense at each size.
+
+## Operability
+
+- **Configuration**: environment only (`DATABASE_URL`, `PORT`, `PUBLIC_WEB_ORIGIN`, `LOG_LEVEL`,
+  `STATIC_DIR`); `server/src/config.ts` is the single reader.
+- **Migrations**: forward-only `.sql` files applied on boot under a transaction-scoped advisory
+  lock; `schema_migrations` records them; `/api/health` reports the count and latest file.
+- **Logging**: Fastify/pino JSON; 5xx responses log the underlying error; DB rejections are mapped
+  to typed error codes (`CB001`–`CB004` → HTTP) so clients and logs share a vocabulary.
+- **CI/CD**: GitLab CI runs typecheck, lint, format, unit (server + web) and integration (real
+  Postgres service) on every push; on `main` it then deploys to Railway and curls `/api/health`.
+- **Tests**: 20 server unit, 37 web unit, 60 integration (throwaway database per file), plus a
+  headless-browser script for the full user journey.
+
 ## Order lifecycle (enforced by `orders_guard_transition`)
 
-![Order lifecycle](architecture/lifecycle.png)
+![Order lifecycle](docs/architecture/lifecycle.png)
 
 ```mermaid
 stateDiagram-v2
@@ -149,7 +257,7 @@ stateDiagram-v2
 
 ## Deployment
 
-![Deployment](architecture/deployment.png)
+![Deployment](docs/architecture/deployment.png)
 
 ```mermaid
 flowchart LR

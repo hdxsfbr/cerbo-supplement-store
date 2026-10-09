@@ -307,3 +307,16 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   emits no frames without change) — stills are now rendered from PNG; and clicking "View as
   patient" opened a new tab the recorder wasn't watching — the script navigates instead.
 - What the agent cannot judge: pronunciation. Andre reviews the narration by ear before use.
+
+### 2026-10-08 — KEY_METRICS.md, ARCHITECTURE.md, SCALING.md
+
+- Andre asked for proper metrics and architecture docs and a 10 → 100 000-user scaling
+  analysis, and whether Cerbo is multi-tenant. Checked docs.cer.bo: the API is addressed as
+  `https://{tenant}.md-hq.com/api/v1/` with per-practice credentials; whether tenants are
+  separate instances or one routed app is not public (their security page 404s), so SCALING.md
+  treats both and recommends a hybrid with `practice_id` everywhere.
+- KEY_METRICS.md is honest about what is *not* measurable here: "volume migrated off third-party
+  marketplaces" needs a baseline the system never sees; decline/replay rates need a
+  `payment_attempts` table that doesn't exist yet.
+- ARCHITECTURE.md moved to the repo root and gained request flows, source-of-truth table,
+  consistency model, security/privacy, tenancy and operability sections.
