@@ -322,17 +322,28 @@ await scene('s04_audit', async () => {
 // s05 — dashboard
 await goto(`${BASE}/dashboard`);
 await scene('s05_dashboard', async () => {
-  await sleep(1200);
+  await sleep(1000);
   const tiles = await page.$$('.dash__tiles .cerbo-panel');
   for (const t of tiles) {
     const b = await t.boundingBox();
-    await moveTo(b.x + b.width / 2, b.y + b.height * 0.6, 500);
-    await sleep(350);
+    await moveTo(b.x + b.width / 2, b.y + b.height * 0.6, 450);
+    await sleep(300);
   }
-  const inv = await page.$('.cerbo-chip--warn');
-  if (inv) {
-    const b = await inv.boundingBox();
-    await moveTo(b.x + b.width / 2, b.y + b.height / 2, 900);
+  await sleep(1200);
+  // "Inventory moves when an order is paid…" → the Inventory tab (practice-wide stock)
+  await clickOn('a::-p-text(Inventory)', { ms: 700 });
+  await page.waitForFunction(() => document.body.innerText.includes('Units on hand'));
+  await installCursor();
+  const row = await page.$('.cerbo-table tbody tr');
+  if (row) {
+    const b = await row.boundingBox();
+    await moveTo(b.x + b.width * 0.85, b.y + b.height / 2, 800);
+  }
+  await sleep(1200);
+  const chip = await page.$('.cerbo-chip--warn');
+  if (chip) {
+    const b = await chip.boundingBox();
+    await moveTo(b.x + b.width / 2, b.y + b.height / 2, 800);
   }
 });
 

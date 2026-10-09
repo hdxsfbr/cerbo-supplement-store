@@ -45,6 +45,12 @@ const routes: RouteRecordRaw[] = [
     meta: { surface: 'patient', title: 'Pay for your supplements' },
   },
   {
+    path: '/inventory',
+    name: 'inventory',
+    component: () => import('./views/Inventory.vue'),
+    meta: { surface: 'provider', title: 'Inventory' },
+  },
+  {
     path: '/portal/:token',
     name: 'portal',
     component: () => import('./views/PatientPortal.vue'),

@@ -20,9 +20,13 @@ integer cents, in an append-only ledger whose invariants are enforced by the dat
 |---|---|
 | ![checkout](docs/screenshots/checkout.png) | ![receipt](docs/screenshots/checkout-receipt.png) |
 
-| Provider: cent-by-cent audit | Provider: dashboard |
+| Provider: cent-by-cent audit | Provider: reporting |
 |---|---|
 | ![audit](docs/screenshots/order-audit.png) | ![dashboard](docs/screenshots/dashboard.png) |
+
+| Practice: inventory | |
+|---|---|
+| ![inventory](docs/screenshots/inventory.png) | |
 
 ## Run it
 
@@ -52,8 +56,9 @@ that machine's address — payment links are built from `PUBLIC_WEB_ORIGIN`.
    Refresh. One payment, receipt shows "Visa ending 4242".
 4. **Audit** (`/orders/:id/audit`) — the ledger: three entries, their memos, Σ = amount paid,
    and the fee computation (`75 bps of 6600¢ = 49.5¢ → 50¢ (half-up)`).
-5. **Reporting** (`/dashboard`) — GMV, margin, COGS, fees as sums over the ledger; inventory
-   with inline edit, low/oversold flags.
+5. **Reporting** (`/dashboard`) — GMV, margin, COGS, fees as sums over the ledger, per provider.
+6. **Inventory** (`/inventory`) — practice-wide stock shared by all providers, with inline edit and
+   low/oversold flags. Its own tab on purpose: stock is shared, the report is not.
 
 ### Tests
 

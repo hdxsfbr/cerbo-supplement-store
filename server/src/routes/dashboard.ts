@@ -97,20 +97,26 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/dashboard/summary', async (req) => {
     const provider = await requireProvider(req);
 
-    const [totals, paid_orders, inventory] = await sql.begin(
+    const [totals, paid_orders] = await sql.begin(
       'isolation level repeatable read read only',
       async (tx) =>
-        Promise.all([
-          dashboardTotals(tx, provider.id),
-          dashboardPaidOrders(tx, provider.id),
-          dashboardInventory(tx, provider.id),
-        ]),
+        Promise.all([dashboardTotals(tx, provider.id), dashboardPaidOrders(tx, provider.id)]),
     );
 
     return {
       provider: { id: provider.id, name: provider.name },
       ...totals,
       paid_orders,
+    };
+  });
+
+  // GET /api/inventory — practice-wide stock (Cerbo holds the inventory); its own screen, not
+  // part of the per-provider report, so the two scopes never sit side by side.
+  app.get('/api/inventory', async (req) => {
+    const provider = await requireProvider(req);
+    const inventory = await dashboardInventory(sql, provider.id);
+    return {
+      provider: { id: provider.id, name: provider.name },
       inventory: inventory.map((s) => ({
         ...s,
         low: s.inventory_count >= 0 && s.inventory_count < LOW_STOCK_THRESHOLD,

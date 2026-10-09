@@ -191,6 +191,10 @@ export interface DashboardSummary {
     margin_cents: number;
     fee_cents: number;
   }[];
+}
+
+export interface InventoryView {
+  provider: { id: number; name: string };
   inventory: (Supplement & {
     units_sold: number;
     units_sold_mine: number;

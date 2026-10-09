@@ -44,7 +44,8 @@ describe('dashboard summary (T022)', () => {
       fees_cents: 0,
       paid_orders: [],
     });
-    expect(res.body.inventory).toHaveLength(8);
+    const inv = await api(ctx.app, 'GET', '/api/inventory', { provider: WELBY });
+    expect(inv.body.inventory).toHaveLength(8);
   });
 
   it('aggregates equal the sum over each paid order’s ledger (contract invariant 5)', async () => {
@@ -94,7 +95,7 @@ describe('dashboard summary (T022)', () => {
   });
 
   it('inventory reflects sales (units_sold, decremented counts) and flags low/negative stock', async () => {
-    const res = await api(ctx.app, 'GET', '/api/dashboard/summary', { provider: WELBY });
+    const res = await api(ctx.app, 'GET', '/api/inventory', { provider: WELBY });
     const omega = res.body.inventory.find((s: { sku: string }) => s.sku === 'OMG-1000-120');
     expect(omega).toMatchObject({
       units_sold: 2,
@@ -104,7 +105,7 @@ describe('dashboard summary (T022)', () => {
       negative: false,
     });
     // the other provider sees the shared stock and practice-wide sales, but 0 sold by them
-    const anderson = await api(ctx.app, 'GET', '/api/dashboard/summary', { provider: ANDERSON });
+    const anderson = await api(ctx.app, 'GET', '/api/inventory', { provider: ANDERSON });
     const omegaA = anderson.body.inventory.find((s: { sku: string }) => s.sku === 'OMG-1000-120');
     expect(omegaA).toMatchObject({ units_sold: 2, units_sold_mine: 0, inventory_count: 118 });
     const adrenal = res.body.inventory.find((s: { sku: string }) => s.sku === 'ADR-SUP-120'); // seeded at 20
@@ -173,7 +174,7 @@ describe('inventory PATCH (FR-008)', () => {
 
   it('a sale can take stock below zero; the dashboard flags it', async () => {
     await paidOrder(WELBY, 1, [{ supplement_id: 1, quantity: 6, unit_price_cents: 3200 }]);
-    const res = await api(ctx.app, 'GET', '/api/dashboard/summary', { provider: WELBY });
+    const res = await api(ctx.app, 'GET', '/api/inventory', { provider: WELBY });
     const omega = res.body.inventory.find((s: { id: number }) => s.id === 1);
     expect(omega).toMatchObject({ inventory_count: -1, negative: true, low: false });
   });

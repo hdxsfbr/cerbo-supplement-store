@@ -28,6 +28,9 @@ function onProviderChange(e: Event): void {
       <RouterLink to="/dashboard" class="cerbo-nav__item" active-class="cerbo-nav__item--active">
         Reporting
       </RouterLink>
+      <RouterLink to="/inventory" class="cerbo-nav__item" active-class="cerbo-nav__item--active">
+        Inventory
+      </RouterLink>
       <span class="cerbo-nav__spacer" />
       <label class="cerbo-nav__acting">
         <span class="cerbo-muted">Acting as</span>

@@ -5,6 +5,7 @@
 import type {
   CheckoutView,
   DashboardSummary,
+  InventoryView,
   LedgerView,
   OrderLineInput,
   OrderListRow,
@@ -96,6 +97,7 @@ export const api = {
   portal: (token: string) => request<PortalView>('GET', `/api/portal/${token}`),
 
   dashboard: () => request<DashboardSummary>('GET', '/api/dashboard/summary'),
+  inventory: () => request<InventoryView>('GET', '/api/inventory'),
   setInventory: (id: number, inventory_count: number) =>
     request<Supplement>('PATCH', `/api/supplements/${id}/inventory`, { inventory_count }),
 };
