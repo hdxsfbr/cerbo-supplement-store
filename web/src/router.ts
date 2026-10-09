@@ -58,6 +58,13 @@ const routes: RouteRecordRaw[] = [
     meta: { surface: 'bare', title: 'Zeus King — Chart (experimental)' },
   },
   {
+    // EXPERIMENTAL: static replica of Cerbo's patient portal; no app chrome, nothing wired.
+    path: '/experimental-portal',
+    name: 'experimental-portal',
+    component: () => import('./views/ExperimentalPortal.vue'),
+    meta: { surface: 'bare', title: 'Patient Portal (experimental)' },
+  },
+  {
     path: '/portal/:token',
     name: 'portal',
     component: () => import('./views/PatientPortal.vue'),
