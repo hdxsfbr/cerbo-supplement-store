@@ -204,3 +204,20 @@ checkout view shows to the patient. Pharmacy-only concepts (refills, days supply
 record, so it cannot be reasoned about (interactions, adherence) later without re-parsing. That
 is enough for a storefront; a real EHR integration would store the structured fields Cerbo's Rx
 model already has.
+
+## 16. A demo sign-in and a Cerbo-shaped portal, on top of the same seams
+
+**Date:** 2026-10-09
+**Context:** Andre wanted the demo to open like Cerbo does: sign in, land on a chart (doctor)
+or the patient portal (patient), and have the store's patient side look like Cerbo's real
+portal (docs/cerbo-ui-reference/portal-*.png) rather than the plain `/portal/:token` page.
+**Decision:** The root is a hard-coded sign-in (two providers, two patients, `stores/login.ts`).
+A doctor login sets the acting provider on the identity seam; a patient login calls
+`POST /api/portal/session`, a new identity-seam method that exchanges a seeded patient id for
+that patient's portal capability token, after which the Cerbo-style portal uses the existing
+`GET /api/portal/:token`. That view gained invoice line items (with `sig`), the card used per
+payment, and a `payment_method` summary; no new tables. Paying still goes through the
+unchanged `/pay/:token` checkout, which now returns to the new portal for signed-in patients.
+**Trade-off:** `POST /api/portal/session` hands out a capability token for any patient id with
+no credential check. That is acceptable only because the whole identity seam is a stand-in;
+it is documented as such and would be the first thing replaced by Cerbo's portal session.

@@ -94,8 +94,24 @@ export interface PortalView {
     paid_at: string | null;
     item_count: number;
     checkout_url: string;
+    card: { brand: string; last4: string } | null;
+    items: {
+      name: string;
+      sku: string | null;
+      quantity: number;
+      unit_price_cents: number;
+      sig: string | null;
+      line_total_cents: number;
+    }[];
   }[];
   balance_due_cents: number;
+  payment_method: { brand: string; last4: string } | null;
+}
+
+export interface PortalSession {
+  token: string;
+  patient: { id: number; name: string; email: string | null };
+  provider: { name: string };
 }
 
 export interface OrderListRow {

@@ -18,6 +18,7 @@ import {
   zipValid,
 } from '../card';
 import { formatCents } from '../money';
+import { useLoginStore } from '../stores/login';
 import type { CheckoutView } from '../types';
 
 const props = defineProps<{ token: string }>();
@@ -29,7 +30,13 @@ const order = ref<CheckoutView | null>(null);
 
 const isPaid = computed(() => order.value?.paid === true);
 const isDraft = computed(() => order.value?.status === 'draft');
-const portalPath = computed(() => order.value?.portal_url.replace(/^https?:\/\/[^/]+/, '') ?? null);
+// A patient signed in through the demo login came from the Cerbo-style portal; send them back there.
+const login = useLoginStore();
+const portalPath = computed(() =>
+  login.isPatient
+    ? '/experimental-portal'
+    : (order.value?.portal_url.replace(/^https?:\/\/[^/]+/, '') ?? null),
+);
 
 // ── Card form ────────────────────────────────────────────────────────────────────────────
 const name = ref('');

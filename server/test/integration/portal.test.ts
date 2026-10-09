@@ -114,6 +114,10 @@ describe('notifications on send (HDX-96)', () => {
       item_count: 1,
     });
     expect(before.body.balance_due_cents).toBe(6400);
+    expect(before.body.invoices[0].items).toHaveLength(1);
+    expect(before.body.invoices[0].items[0]).toMatchObject({ quantity: 2, line_total_cents: 6400 });
+    expect(before.body.invoices[0].card).toBeNull();
+    expect(before.body.payment_method).toBeNull();
     expect(JSON.stringify(before.body)).not.toMatch(/cogs|margin|fee/);
 
     const checkoutToken = before.body.invoices[0].checkout_url.split('/pay/')[1];
@@ -129,6 +133,20 @@ describe('notifications on send (HDX-96)', () => {
     expect(after.body.invoices[0]).toMatchObject({ id: orderId, status: 'paid' });
     expect(after.body.messages[0].order_status).toBe('paid');
     expect(after.body.balance_due_cents).toBe(0);
+  });
+
+  it('POST /api/portal/session exchanges a patient id for that patient’s portal token', async () => {
+    const res = await api(ctx.app, 'POST', '/api/portal/session', { body: { patient_id: 1 } });
+    expect(res.status).toBe(201);
+    expect(res.body.token).toBe(await portalTokenFor(1));
+    expect(res.body.patient).toMatchObject({ id: 1, name: 'Zeus King' });
+    expect(res.body.provider.name).toBe('Dr. Marcus Welby');
+    const missing = await api(ctx.app, 'POST', '/api/portal/session', {
+      body: { patient_id: 999 },
+    });
+    expect(missing.status).toBe(404);
+    const bad = await api(ctx.app, 'POST', '/api/portal/session', { body: { patient_id: 'x' } });
+    expect(bad.status).toBe(400);
   });
 
   it('another patient’s portal does not show this patient’s data; bad token → 404', async () => {

@@ -677,3 +677,30 @@
   height: 44px;
   font-size: 14px;
 }
+
+/* wired portal */
+.xp-err {
+  color: #c54243;
+}
+.xp-balance--zero {
+  background: #4f9d3a;
+}
+.xp-btn--sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.xp-msg__foot .xp-btn {
+  text-decoration: none;
+}
+.xp-table .xp-btn {
+  text-decoration: none;
+}
+.xp a.xp-btn {
+  color: #fff;
+}
+.xp a.xp-btn--outline {
+  color: #2a9b8a;
+}
+.xp a.xp-btn--red {
+  color: var(--xp-red);
+}

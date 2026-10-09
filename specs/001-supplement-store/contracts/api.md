@@ -51,3 +51,10 @@ authenticate by capability token in the URL — no header.
 3. Double `POST /pay` with *different* keys → second gets 409 `already_paid` (UNIQUE order_id).
 4. Mutations on non-draft orders → 409 `order_locked`.
 5. `dashboard/summary` equals the sum over `orders/:id/ledger` for all paid orders.
+
+## Patient portal (HDX-96)
+
+| Route | Purpose | Notes |
+|---|---|---|
+| `POST /api/portal/session` | Demo portal sign-in | body `{ patient_id }` → `{ token, patient, provider }`; identity-seam stand-in for the portal login |
+| `GET /api/portal/:token` | Patient's portal view | messages, invoices (with items incl. `sig`, and the card used), `balance_due_cents`, `payment_method` |

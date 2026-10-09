@@ -33,6 +33,12 @@ export interface IdentityProvider {
   resolveCheckout(token: string): Promise<CheckoutIdentity | null>;
   /** Which patient a portal capability token belongs to (stand-in for the portal login). */
   resolvePortal(token: string): Promise<PortalIdentity | null>;
+  /**
+   * Demo portal sign-in: exchange a seeded patient id for that patient's portal token. Stands in
+   * for the portal's credential check; production would verify a password / magic link and
+   * create a session instead of handing out the capability token.
+   */
+  portalSignIn(patientId: number): Promise<{ token: string; identity: PortalIdentity } | null>;
 }
 
 export const ACTING_PROVIDER_HEADER = 'x-acting-provider';
@@ -65,6 +71,17 @@ export class SeededIdentity implements IdentityProvider {
       orderId: row.order_id,
       patient: { id: row.patient_id, name: row.patient_name, email: row.patient_email },
     };
+  }
+
+  async portalSignIn(
+    patientId: number,
+  ): Promise<{ token: string; identity: PortalIdentity } | null> {
+    if (!Number.isSafeInteger(patientId) || patientId <= 0) return null;
+    const [row] = await this.sql<{ portal_token: string }[]>`
+      SELECT portal_token FROM patients WHERE id = ${patientId}`;
+    if (!row) return null;
+    const identity = await this.resolvePortal(row.portal_token);
+    return identity ? { token: row.portal_token, identity } : null;
   }
 
   async resolvePortal(token: string): Promise<PortalIdentity | null> {

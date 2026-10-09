@@ -12,6 +12,7 @@ import type {
   OrderView,
   Patient,
   PaymentMethodInput,
+  PortalSession,
   PortalView,
   Supplement,
 } from './types';
@@ -95,6 +96,8 @@ export const api = {
       ...(payment_method ? { payment_method } : {}),
     }),
   portal: (token: string) => request<PortalView>('GET', `/api/portal/${token}`),
+  portalSignIn: (patient_id: number) =>
+    request<PortalSession>('POST', '/api/portal/session', { patient_id }),
 
   dashboard: () => request<DashboardSummary>('GET', '/api/dashboard/summary'),
   inventory: () => request<InventoryView>('GET', '/api/inventory'),

@@ -332,3 +332,15 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   lines, reopen a draft line to check prefill, send) and the API read-back of the saved sig.
 - Agent judgment call that Andre should confirm: pharmacy-only fields from the Rx form (refills,
   days supply, protocol select, print) were removed instead of shown as inert controls.
+
+### 2026-10-09 — Sign-in, patient-portal replica, and wiring the portal to the store
+
+- Built `/experimental-portal` from seven Cerbo portal screenshots (static first, approved,
+  then wired), a root sign-in with two doctors and two patients, and a patient dropdown on the
+  chart in place of Cerbo's search box.
+- Wiring added one endpoint (`POST /api/portal/session`) on the identity seam and extended the
+  portal view with items, card and payment method; tests, contract and DECISIONS #16 updated.
+- Verified in headless Chrome: sign in as Zeus, read messages, Make Payment → existing checkout
+  with a test Visa → back to the portal with balance, statement credit and card tile updated.
+- Judgment calls to confirm: My Supplements lists what the practice ordered (paid or not, with a
+  Pay Now button on unpaid lines); Cerbo's self-reported supplement lookup stays static.
