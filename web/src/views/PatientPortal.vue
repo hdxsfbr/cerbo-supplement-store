@@ -35,6 +35,12 @@ function fmtDate(iso: string | null): string {
 function payPath(url: string): string {
   return url.replace(/^https?:\/\/[^/]+/, '');
 }
+/** Messages backfilled by migration 006 carry no link; use the invoice's checkout URL instead. */
+function messageLink(m: { link: string | null; order_id: number | null }): string | null {
+  if (m.link) return m.link;
+  const inv = data.value?.invoices.find((i) => i.id === m.order_id);
+  return inv ? inv.checkout_url : null;
+}
 </script>
 
 <template>
@@ -64,8 +70,8 @@ function payPath(url: string): string {
           <p class="portal-message__meta">{{ data.provider.name }} · {{ fmtDate(m.created_at) }}</p>
           <p class="portal-message__body">{{ m.body }}</p>
           <RouterLink
-            v-if="m.link && m.order_status === 'awaiting_payment'"
-            :to="payPath(m.link)"
+            v-if="messageLink(m) && m.order_status === 'awaiting_payment'"
+            :to="payPath(messageLink(m)!)"
             class="portal-btn portal-btn--primary"
             >Review and pay</RouterLink
           >

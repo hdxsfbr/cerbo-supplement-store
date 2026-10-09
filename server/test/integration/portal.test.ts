@@ -224,3 +224,40 @@ describe('card payment method (HDX-97)', () => {
     expect(none.body.payment).toMatchObject({ card_brand: null, card_last4: null });
   });
 });
+
+describe('backfill of pre-005 orders (migration 006)', () => {
+  it('an awaiting-payment order without a portal message gets one with the same copy', async () => {
+    const created = await api(ctx.app, 'POST', '/api/orders', {
+      provider: WELBY,
+      body: { patient_id: 3 },
+    });
+    await api(ctx.app, 'PUT', `/api/orders/${created.body.id}/items`, {
+      provider: WELBY,
+      body: { items: [{ supplement_id: 2, quantity: 1, unit_price_cents: 850 }] },
+    });
+    await api(ctx.app, 'POST', `/api/orders/${created.body.id}/send`, { provider: WELBY });
+    await ctx.sql`DELETE FROM notifications WHERE order_id = ${created.body.id}`; // pretend it predates 005
+    const { readFile } = await import('node:fs/promises');
+    const body = await readFile(
+      new URL('../../src/db/migrations/006_backfill_portal_messages.sql', import.meta.url),
+      'utf8',
+    );
+    await ctx.sql.unsafe(body);
+    const rows = await ctx.sql<{ subject: string; link: string | null }[]>`
+      SELECT subject, link FROM notifications WHERE order_id = ${created.body.id}`;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({
+      subject: `Supplement order #${created.body.id} from Dr. Marcus Welby — $8.50 due`,
+      link: null,
+    });
+    // portal still exposes a way to pay it
+    const portal = await api(ctx.app, 'GET', `/api/portal/${await portalTokenFor(3)}`);
+    const msg = portal.body.messages.find(
+      (m: { order_id: number }) => m.order_id === created.body.id,
+    );
+    expect(msg.link).toBeNull();
+    expect(
+      portal.body.invoices.find((i: { id: number }) => i.id === created.body.id).checkout_url,
+    ).toMatch(/\/pay\//);
+  });
+});
