@@ -23,6 +23,7 @@ Thumbs.db
 # claude worktrees
 .claude/worktrees/
 docs/screenshots/e2e/
-docs/demo/audio/*.wav
+docs/demo/audio*/*.wav
+docs/demo/audio*/durations.json
 docs/demo/clips/
 docs/demo/out/

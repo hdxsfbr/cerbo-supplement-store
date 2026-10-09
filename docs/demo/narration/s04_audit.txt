@@ -1,5 +1,5 @@
-This is the part that's graded. The ledger has exactly three entries for this order, each with a memo showing its computation.
+This is the part that's graded. The ledger holds exactly three entries for this order, each with a memo showing its own computation.
 
-The fee is seventy-five basis points of sixty-six dollars: forty-nine and a half cents, rounded half-up to fifty. Margin is the residual, so the sum is exact by construction.
+The fee is seventy-five basis points of the total. Here that lands on a half cent, and it rounds half-up. The margin is the residual, so the three always sum to what the patient paid.
 
-And it's not just the app saying so. A deferred constraint trigger in Postgres re-checks the whole split at commit, the ledger rejects updates and deletes, and the tests prove it by trying to break it with raw SQL.
+And it isn't just the application saying so. A deferred constraint trigger in Postgres re-checks the whole split at commit. The ledger refuses updates and deletes. And the test suite proves it by trying to break the split with raw SQL, and watching the database refuse.

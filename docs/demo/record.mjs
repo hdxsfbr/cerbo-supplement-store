@@ -13,8 +13,9 @@ const HERE = path.resolve(new URL('.', import.meta.url).pathname);
 const CLIPS = path.join(HERE, 'clips');
 mkdirSync(CLIPS, { recursive: true });
 
+const AUDIO_DIR = process.env.AUDIO_DIR ?? 'audio';
 const audioDur = (id) =>
-  Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', path.join(HERE, 'audio', `${id}_norm.wav`)]).toString().trim());
+  Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', path.join(HERE, AUDIO_DIR, `${id}_norm.wav`)]).toString().trim());
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ONLY = process.env.SCENES ? process.env.SCENES.split(',') : null;
@@ -124,15 +125,16 @@ await scene('s02_builder', async () => {
   await clickOn(priceInputs[1], { fx: 0.8 });
   await selectAll(); await typeSlow('9.50'); await page.keyboard.press('Tab');
   await sleep(1400);
-  // type a target margin on Omega-3 → price derives
+  // type a target margin on vitamin D → price derives to exactly $10.00 (60% on $4.00 COGS),
+  // so the order total is $42.00 and the fee lands on a half cent (31.5¢ → 32¢), as narrated.
   const pct = await page.$$('input[aria-label^="Margin percent"]');
-  await clickOn(pct[0], { fx: 0.8 });
-  await selectAll(); await typeSlow('45'); await page.keyboard.press('Tab');
+  await clickOn(pct[1], { fx: 0.8 });
+  await selectAll(); await typeSlow('60'); await page.keyboard.press('Tab');
   await sleep(2200);
   // hover the billing panel so the eye follows the narration
   const bill = await page.$('.cerbo-split-preview');
   if (bill) { const b = await bill.boundingBox(); await moveTo(b.x + b.width * 0.5, b.y + b.height * 0.6, 900); }
-  await sleep(4500);
+  await sleep(5500);
   await clickOn('button::-p-text(Send to patient for payment)', { ms: 800 });
   await page.waitForFunction(() => document.body.innerText.includes('Sent to patient'));
   await sleep(500);
@@ -147,25 +149,29 @@ await scene('s03_portal_pay', async () => {
   await sleep(300);
   await goto(portalUrl);
   log('  portal loaded');
+  const bal = await page.$('.portal-balance'); if (bal) { const b = await bal.boundingBox(); await moveTo(b.x + b.width * 0.8, b.y + b.height / 2, 700); }
   await sleep(2200);
-  await clickOn('a::-p-text(Review and pay)', { ms: 800 });
+  await clickOn('a::-p-text(Review and pay)', { ms: 900 });
   await page.waitForSelector('#cc-number');
   await installCursor();
   await sleep(1200);
   await clickOn('#cc-name'); await typeSlow('Zeus King', 45);
-  await clickOn('button::-p-text(Declined)', { ms: 500 });
-  await sleep(500);
-  await clickOn('button[type=submit]', { ms: 500 });
+  await sleep(800);
+  await clickOn('button::-p-text(Declined)', { ms: 700 });
+  await sleep(700);
+  await clickOn('button[type=submit]', { ms: 600 });
   await page.waitForFunction(() => document.body.innerText.includes('declined'), { timeout: 20000 });
   log('  decline shown');
-  await sleep(2600);
-  await clickOn('button::-p-text(Succeeds)', { ms: 500 });
-  await sleep(400);
-  await clickOn('button[type=submit]', { ms: 500 });
+  const err = await page.$('.portal-status--error'); if (err) { const b = await err.boundingBox(); await moveTo(b.x + b.width * 0.3, b.y + b.height / 2, 600); }
+  await sleep(3000);
+  await clickOn('button::-p-text(Succeeds)', { ms: 700 });
+  await sleep(600);
+  await clickOn('button[type=submit]', { ms: 600 });
   await page.waitForFunction(() => document.body.innerText.includes('Paid — thank you'), { timeout: 20000 });
   log('  paid');
   await installCursor();
-  await sleep(2500);
+  const card = await page.$('.portal-receipt'); if (card) { const b = await card.boundingBox(); await moveTo(b.x + b.width * 0.7, b.y + b.height * 0.6, 800); }
+  await sleep(2800);
   await page.reload({ waitUntil: 'networkidle0' }); await installCursor();
   const rc = await page.$('.portal-receipt'); if (rc) { const b = await rc.boundingBox(); await moveTo(b.x + b.width * 0.7, b.y + b.height * 0.5, 700); }
 });
@@ -175,12 +181,14 @@ const orderId = await page.evaluate(() => document.body.innerText.match(/Order #
 log('order id for audit:', orderId);
 await goto(`${BASE}/orders/${orderId}/audit`);
 await scene('s04_audit', async () => {
-  await sleep(1500);
+  await sleep(2500);
   const rows = await page.$$('.audit__ledger tbody tr');
-  for (const r of rows) { const b = await r.boundingBox(); await moveTo(b.x + b.width * 0.45, b.y + b.height / 2, 700); await sleep(900); }
-  const fee = await page.$('.audit__fee-table'); if (fee) { const b = await fee.boundingBox(); await moveTo(b.x + b.width * 0.8, b.y + b.height * 0.6, 900); }
-  await sleep(6000);
-  const bal = await page.$('.cerbo-balance'); if (bal) { const b = await bal.boundingBox(); await moveTo(b.x + b.width * 0.5, b.y + b.height / 2, 900); }
+  for (const r of rows) { const b = await r.boundingBox(); await moveTo(b.x + b.width * 0.45, b.y + b.height / 2, 700); await sleep(1500); }
+  const fee = await page.$('.audit__fee-table'); if (fee) { const b = await fee.boundingBox(); await moveTo(b.x + b.width * 0.8, b.y + b.height * 0.3, 900); await sleep(2500); await moveTo(b.x + b.width * 0.8, b.y + b.height * 0.9, 900); }
+  await sleep(4500);
+  const bal2 = await page.$('.cerbo-balance'); if (bal2) { const b = await bal2.boundingBox(); await moveTo(b.x + b.width * 0.5, b.y + b.height / 2, 900); }
+  await sleep(4000);
+  const memo = await page.$('.audit__memo'); if (memo) { const b = await memo.boundingBox(); await moveTo(b.x + b.width * 0.4, b.y + b.height / 2, 900); }
 });
 
 // s05 — dashboard
@@ -195,9 +203,9 @@ await scene('s05_dashboard', async () => {
 // s06 — under the hood slide
 await goto(slide('s06_under_hood.html'));
 await scene('s06_under_hood', async () => {
-  await moveTo(470, 520, 600);
-  await moveTo(480, 520, 900); await sleep(5000);
-  await moveTo(1400, 520, 900);
+  await moveTo(470, 520, 600); await sleep(8500);
+  await moveTo(1400, 520, 900); await sleep(6000);
+  await moveTo(1400, 760, 800);
 });
 
 

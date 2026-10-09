@@ -1,3 +1,5 @@
-Hi, I'm Andre. This is my take-home for Cerbo: an in-house supplement store, built as a vertical slice in Cerbo's own stack. Vue, TypeScript, Fastify, and Postgres.
+This is a take-home for Cerbo: an in-house supplement store, built as a vertical slice in Cerbo's own stack. Vue, TypeScript, Fastify, and Postgres.
 
-The brief: a provider assembles a supplement order, the patient pays, and the system records exactly where every cent goes. Cost of goods, provider margin, and Cerbo's seventy-five basis point fee. Let me show you.
+The brief is simple to state and easy to get wrong. A provider assembles a supplement order, the patient pays, and the system records exactly where every cent goes: cost of goods, the provider's margin, and Cerbo's seventy-five basis point fee.
+
+Here's how it works.
