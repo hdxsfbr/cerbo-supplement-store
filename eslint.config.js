@@ -28,7 +28,7 @@ export default tseslint.config(
   },
   {
     // Headless-browser scripts run under Node and evaluate code inside the page.
-    files: ['scripts/**/*.mjs'],
+    files: ['scripts/**/*.mjs', 'docs/demo/**/*.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
