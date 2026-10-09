@@ -6,8 +6,9 @@ supplement-store screens feel native to Cerbo. We are not copying their code or 
 what's needed for the "lives inside the EHR" illusion in a take-home exercise.
 
 ## Overall chrome
-- Dark charcoal page background; content lives in dense white panels ("blocks") with 1px borders.
-- Top nav bar, dark, with yellow/amber active underlines: Scheduling · Admin · Reporting ·
+- Slate gray-blue page background (#7a8797, sampled from the captures — earlier drafts of these notes
+  said "dark charcoal", which was wrong); content lives in dense white panels ("blocks") with 1px borders.
+- Top nav on the same slate as the page (no separate bar), white text, yellow/amber active underlines: Scheduling · Admin · Reporting ·
   Tasks (badge) · Generate · My Links · Pt Portal · Settings, user initials, patient search box right.
 - Left rail on chart view: patient photo, name + alias ("Zeus King ('Jupiter') #21 - 54 Years"),
   Patient Information block, status strips (red "Opted Out of AC", black "Cash Pay", gray "Hormone").

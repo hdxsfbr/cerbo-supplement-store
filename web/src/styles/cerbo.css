@@ -12,22 +12,22 @@
 
 :root {
   /* Page chrome */
-  --cerbo-bg: #2b2d31;
+  --cerbo-bg: #7a8797; /* slate gray-blue, sampled from the Storylane captures (not charcoal) */
   --cerbo-panel-bg: #ffffff;
   --cerbo-panel-border: #d7d7d7;
-  --cerbo-nav-bg: #1c1d20;
-  --cerbo-nav-fg: #e8e8e8;
-  --cerbo-nav-active: #e0a500;
+  --cerbo-nav-bg: #7a8797; /* same slate as the page; Cerbo's nav has no separate bar colour */
+  --cerbo-nav-fg: #ffffff;
+  --cerbo-nav-active: #f0c419; /* amber underline / badge yellow */
 
-  /* Panel header palette (DESIGN-NOTES.md) */
-  --cerbo-header-green: #3f7d3f;
-  --cerbo-header-maroon: #6b1f24;
-  --cerbo-header-navy: #1f3a5f;
-  --cerbo-header-black: #1a1a1a;
-  --cerbo-header-purple: #6a2e6a;
-  --cerbo-header-orange: #b35c00;
-  --cerbo-header-amber: #c9a000;
-  --cerbo-header-gray: #555861;
+  /* Panel header palette — sampled from docs/cerbo-ui-reference/patient-chart-full.jpg */
+  --cerbo-header-green: #40641a;
+  --cerbo-header-maroon: #9d2115;
+  --cerbo-header-navy: #123261;
+  --cerbo-header-black: #333333;
+  --cerbo-header-purple: #79127d;
+  --cerbo-header-orange: #db8e34;
+  --cerbo-header-amber: #f8d74a;
+  --cerbo-header-gray: #333333;
   --cerbo-header-fg: #ffffff;
 
   /* Content colors */

@@ -61,7 +61,7 @@ function onProviderChange(e: Event): void {
   gap: 6px;
 }
 .cerbo-nav__acting .cerbo-muted {
-  color: #bdbdbd;
+  color: #e9edf2;
 }
 .cerbo-main {
   padding: 12px;
