@@ -225,3 +225,9 @@ a "+ Add Supplement" picker and a "+ Complete Supplement Order" form (patient si
 the live split, add / add another / add & send). It reuses the same order-draft store and API;
 the only schema addition is an optional per-line patient `sig` (migration 007). Reference
 screenshots and design notes live in `docs/cerbo-ui-reference/`.
+
+The root `/` is a demo sign-in with two providers and two patients (hard-coded in
+`web/src/stores/login.ts`). A provider lands on the chart and picks the patient from the
+top-right dropdown; a patient lands on `/experimental-portal`, a static replica of Cerbo's
+patient portal. The store's own pages (`/orders/new`, `/dashboard`, `/inventory`,
+`/pay/:token`, `/portal/:token`) are unchanged.

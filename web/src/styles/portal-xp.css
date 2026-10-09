@@ -632,3 +632,48 @@
     gap: 60px;
   }
 }
+
+/* login */
+.xp-login {
+  display: grid;
+  place-items: center;
+  padding: 40px 16px;
+}
+.xp-login__box {
+  width: min(420px, 100%);
+  background: #fff;
+  padding: 36px 36px 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+.xp-login__logo {
+  height: 96px;
+  margin: 0 auto 26px;
+  display: block;
+}
+.xp-login__label {
+  display: block;
+  text-align: left;
+  font-size: 14px;
+  color: #555;
+  margin: 14px 0 6px;
+}
+.xp-login__select,
+.xp-login__input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 42px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  padding: 0 12px;
+  font: inherit;
+  color: #444;
+}
+.xp-login__btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 26px;
+  height: 44px;
+  font-size: 14px;
+}

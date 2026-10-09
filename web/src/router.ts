@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import { useLoginStore } from './stores/login';
 
 // Two surfaces (constitution VI): `provider` routes render inside the Cerbo chart chrome,
 // `patient` routes render in the clean portal layout. See App.vue.
@@ -10,7 +11,12 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
-  { path: '/', redirect: '/orders/new' },
+  {
+    path: '/',
+    name: 'login',
+    component: () => import('./views/Login.vue'),
+    meta: { surface: 'bare', title: 'Sign in' },
+  },
   {
     path: '/orders/new',
     name: 'order-new',
@@ -75,6 +81,18 @@ const routes: RouteRecordRaw[] = [
 ];
 
 export const router = createRouter({ history: createWebHistory(), routes });
+
+// The experimental surfaces need a demo login (stores/login.ts); everything else is unchanged.
+router.beforeEach((to) => {
+  if (to.name !== 'experimental-chart' && to.name !== 'experimental-portal') return true;
+  const a = useLoginStore().account;
+  if (!a) return { name: 'login' };
+  if (to.name === 'experimental-chart' && a.role !== 'doctor')
+    return { name: 'experimental-portal' };
+  if (to.name === 'experimental-portal' && a.role !== 'patient')
+    return { name: 'experimental-chart' };
+  return true;
+});
 
 router.afterEach((to) => {
   document.title = to.meta.title ? `${to.meta.title} · Cerbo` : 'Cerbo · Supplement Store';

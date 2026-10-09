@@ -6,7 +6,9 @@
 // Route: /experimental-chart.
 import '../styles/chart.css';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api';
+import { useLoginStore } from '../stores/login';
 import { useOrderDraftStore } from '../stores/orderDraft';
 import { useSessionStore } from '../stores/session';
 import {
@@ -19,13 +21,29 @@ import {
 } from '../money';
 import type { OrderView, Patient, Supplement } from '../types';
 
-// The chart is Zeus King's (seeded patient #1 for Dr. Welby); the acting provider comes from
-// the session store (identity seam), exactly as on the order builder.
-const CHART_PATIENT = 'Zeus King';
+// The acting provider comes from the demo login (identity seam); the patient being viewed is
+// chosen from the top-right dropdown and kept in the URL (?patient=<id>) so reloads stick.
 useSessionStore();
+const login = useLoginStore();
+const route = useRoute();
+const router = useRouter();
 const draft = useOrderDraftStore();
+const doctorInitials = computed(() =>
+  login.account?.role === 'doctor' ? login.account.initials : '',
+);
+const providerName = computed(() => login.account?.name ?? '');
 
+const patients = ref<Patient[]>([]);
 const patient = ref<Patient | null>(null);
+const firstName = computed(() => patient.value?.name.split(' ')[0] ?? '');
+function selectPatient(e: Event): void {
+  const id = Number((e.target as HTMLSelectElement).value);
+  void router.replace({ query: { ...route.query, patient: String(id) } });
+}
+function signOut(): void {
+  login.signOut();
+  void router.push('/');
+}
 const catalog = ref<Supplement[]>([]);
 const history = ref<OrderView[]>([]); // this patient's sent/paid orders, newest first
 const loading = ref(true);
@@ -41,8 +59,12 @@ async function loadChart(): Promise<void> {
       api.listOrders(),
     ]);
     catalog.value = cat.supplements;
-    const p = pts.patients.find((x) => x.name === CHART_PATIENT) ?? pts.patients[0] ?? null;
+    patients.value = pts.patients;
+    const wanted = Number(route.query.patient);
+    const p = pts.patients.find((x) => x.id === wanted) ?? pts.patients[0] ?? null;
     patient.value = p;
+    modal.value = null;
+    tab.value = 'meds';
     if (!p) return;
     const mine = list.orders.filter((o) => o.patient_id === p.id).slice(0, 20);
     const views = await Promise.all(mine.map((o) => api.getOrder(o.id)));
@@ -57,6 +79,10 @@ async function loadChart(): Promise<void> {
   }
 }
 onMounted(loadChart);
+watch(
+  () => route.query.patient,
+  () => void loadChart(),
+);
 
 // ── Supplements tab ──────────────────────────────────────────────────────────────────────
 const tab = ref<'meds' | 'supps'>('meds');
@@ -394,22 +420,28 @@ const ledger = [
       <span class="xc-nav__item">My Links</span>
       <span class="xc-nav__item">Pt Portal</span>
       <span class="xc-nav__item">Settings</span>
-      <span class="xc-nav__user">&#128100; M.W.</span>
+      <span class="xc-nav__user" :title="providerName" @click="signOut"
+        >&#128100; {{ doctorInitials }}</span
+      >
       <span class="xc-nav__help">?</span>
       <span class="xc-nav__note"></span>
-      <input class="xc-nav__search" value="- Search Patients -" readonly />
+      <select class="xc-nav__search" :value="patient?.id ?? ''" @change="selectPatient">
+        <option value="" disabled>- Search Patients -</option>
+        <option v-for="p in patients" :key="p.id" :value="p.id">{{ p.name }}</option>
+      </select>
     </nav>
 
     <div class="xc-grid">
       <!-- ── Column 1: patient rail ─────────────────────────────────────── -->
       <div class="xc-col xc-col--rail">
         <div class="xc-photo">
-          <img src="/experimental/zeus.jpg" alt="" />
+          <img v-if="patient?.id === 1" src="/experimental/zeus.jpg" alt="" />
+          <div v-else class="xc-photo__blank">{{ firstName.slice(0, 1) }}</div>
           <div class="xc-photo__icons"><span></span><span>&#9998;</span></div>
           <div class="xc-photo__cap">
             <span class="xc-photo__sex">&#9792;</span>
-            <b>Zeus King</b> <i>("Jupiter")</i><br />
-            #21 - <b style="font-size: 13px">54 Years</b> (01/08/1970)
+            <b>{{ patient?.name ?? '…' }}</b> <i v-if="patient?.id === 1">("Jupiter")</i><br />
+            #{{ 20 + (patient?.id ?? 1) }} - <b style="font-size: 13px">54 Years</b> (01/08/1970)
           </div>
         </div>
 
@@ -667,7 +699,7 @@ const ledger = [
             </div>
             <div class="xc-panel__body">
               <div class="xc-docs__bar">
-                <b>Unreviewed for Zeus King</b>
+                <b>Unreviewed for {{ patient?.name ?? '…' }}</b>
                 <span
                   ><input value="Search Documents" readonly /><select>
                     <option>Newest First</option>

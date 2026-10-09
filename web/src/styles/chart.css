@@ -154,6 +154,19 @@
   font-size: 12px;
   padding: 0 6px;
   margin-left: auto;
+  font-family: inherit;
+}
+.xc-nav__user {
+  cursor: pointer;
+}
+.xc-photo__blank {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #c9ced6;
+  color: #fff;
+  font-size: 110px;
+  display: grid;
+  place-items: center;
 }
 
 /* ── grid ────────────────────────────────────────────────────────────────── */

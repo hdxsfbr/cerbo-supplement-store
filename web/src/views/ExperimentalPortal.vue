@@ -3,7 +3,17 @@
 // docs/cerbo-ui-reference/portal-*.png. Nothing here is wired to the API yet; it is the canvas
 // the store's patient side (messages, invoices, pay) will later live in. Route: /experimental-portal.
 import '../styles/portal-xp.css';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useLoginStore } from '../stores/login';
+
+const login = useLoginStore();
+const router = useRouter();
+const firstName = computed(() => login.account?.name.split(' ')[0] ?? '');
+function signOut(): void {
+  login.signOut();
+  void router.push('/');
+}
 
 type View = 'home' | 'supps' | 'msgs' | 'bills';
 const view = ref<View>('home');
@@ -405,9 +415,10 @@ const invoices = [
 
         <!-- ── Sidebar ───────────────────────────────────────────────────── -->
         <aside class="xp__side">
-          <div class="xp-side__hi">Hi Zeus!</div>
-          <select class="xp-side__switch">
+          <div class="xp-side__hi">Hi {{ firstName }}!</div>
+          <select class="xp-side__switch" @change="signOut">
             <option>Switch Account</option>
+            <option>Sign out</option>
           </select>
           <ul class="xp-nav">
             <li
