@@ -4,7 +4,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 // `patient` routes render in the clean portal layout. See App.vue.
 declare module 'vue-router' {
   interface RouteMeta {
-    surface: 'provider' | 'patient';
+    surface: 'provider' | 'patient' | 'bare';
     title?: string;
   }
 }
@@ -49,6 +49,13 @@ const routes: RouteRecordRaw[] = [
     name: 'inventory',
     component: () => import('./views/Inventory.vue'),
     meta: { surface: 'provider', title: 'Inventory' },
+  },
+  {
+    // EXPERIMENTAL: static replica of Cerbo's chart; no app chrome, nothing wired.
+    path: '/experimental-chart',
+    name: 'experimental-chart',
+    component: () => import('./views/ExperimentalChart.vue'),
+    meta: { surface: 'bare', title: 'Zeus King — Chart (experimental)' },
   },
   {
     path: '/portal/:token',

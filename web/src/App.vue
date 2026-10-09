@@ -43,6 +43,7 @@ function onProviderChange(e: Event): void {
       <RouterView />
     </main>
   </div>
+  <RouterView v-else-if="surface === 'bare'" />
   <div v-else class="portal-page">
     <RouterView />
   </div>
