@@ -19,7 +19,9 @@ function onProviderChange(e: Event): void {
 <template>
   <div v-if="surface === 'provider'" class="cerbo-page">
     <nav class="cerbo-nav">
-      <span class="cerbo-nav__brand">cerbo</span>
+      <RouterLink to="/orders/new" class="cerbo-nav__logo" aria-label="Cerbo home">
+        <img src="/cerbo-logo.svg" alt="Cerbo" />
+      </RouterLink>
       <RouterLink to="/orders/new" class="cerbo-nav__item" active-class="cerbo-nav__item--active">
         Supplement Store
       </RouterLink>
@@ -44,13 +46,20 @@ function onProviderChange(e: Event): void {
 </template>
 
 <style scoped>
-.cerbo-nav__brand {
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: lowercase;
-  color: var(--cerbo-nav-active);
+/* Cerbo's chart shows its logo on a white tile at the top-left of the slate header. */
+.cerbo-nav__logo {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 3px;
+  padding: 4px 10px;
   margin-right: 16px;
-  font-size: 16px;
+  line-height: 0;
+}
+.cerbo-nav__logo img {
+  height: 24px;
+  width: auto;
+  display: block;
 }
 .cerbo-nav__spacer {
   flex: 1;

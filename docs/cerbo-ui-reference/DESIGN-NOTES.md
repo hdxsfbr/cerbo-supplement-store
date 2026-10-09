@@ -37,6 +37,12 @@ what's needed for the "lives inside the EHR" illusion in a take-home exercise.
   supplement refill" — supplements already flow through their portal queue today.
 - Demo patients are Greek gods (Zeus King, Hera Elaine Queen) with Dr. Marcus Welby — fun seed-data idea.
 
+## Logo
+
+`web/public/cerbo-logo.svg` is Cerbo's own wordmark (https://www.cer.bo/wp-content/themes/cerbo2025/images/logo.svg),
+shown on a white tile at the top-left of the header exactly as their chart does. Used solely to
+sell the "lives inside Cerbo" illusion in a take-home for Cerbo; it is their trademark.
+
 ## What we'll build with it
 Provider-facing screens (order builder, dashboard) styled as Cerbo chart blocks: colored panel
 headers, dense tables, a "Supplement Store" block that could sit next to Medications. The
