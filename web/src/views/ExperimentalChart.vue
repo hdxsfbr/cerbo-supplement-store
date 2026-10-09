@@ -711,7 +711,7 @@ const ledger = [
               </select>
               &nbsp; Patient price $
               <input type="text" value="19.00" readonly style="width: 70px" /> &nbsp; or target
-              margin <input type="text" value="50.0" readonly style="width: 56px" /> %
+              margin <input type="text" :value="marginPct" readonly style="width: 56px" /> %
               <span class="xc-fs__hint">Default price pre-filled from the practice catalog</span>
             </div>
             <div class="xc-split">
