@@ -3,6 +3,145 @@
 // docs/cerbo-ui-reference/chart-storylane-full.png as closely as possible. Nothing here is wired
 // to the API; it is the canvas we will later embed the supplement store into. Route: /experimental-chart.
 import '../styles/chart.css';
+import { computed, ref } from 'vue';
+import {
+  formatCents,
+  previewSplit,
+  priceForMarginBps,
+  marginPercentBps,
+  formatBps,
+} from '../money';
+
+// Supplements tab + modals (static). `tab` switches the list; `modal` shows the picker or the
+// detail form; `picked` is the highlighted catalog row.
+const tab = ref<'meds' | 'supps'>('meds');
+const modal = ref<null | 'pick' | 'detail'>(null);
+const picked = ref(2);
+const catalog = [
+  {
+    name: 'Omega-3 Fish Oil 1000 mg (120 softgels)',
+    sku: 'OMG-1000-120',
+    strength: '1000MG',
+    form: 'SOFTGEL,ORAL',
+    unit: 'BOTTLE (120 softgels)',
+    cogs: 1850,
+    price: 3200,
+    stock: 119,
+    take: '2',
+    freq: 'QD (once a day)',
+    days: '60',
+  },
+  {
+    name: 'Vitamin D3 5000 IU (90 caps)',
+    sku: 'VD3-5000-090',
+    strength: '5000IU',
+    form: 'CAP,ORAL',
+    unit: 'BOTTLE (90 caps)',
+    cogs: 400,
+    price: 850,
+    stock: 199,
+    take: '1',
+    freq: 'QD (once a day)',
+    days: '90',
+  },
+  {
+    name: 'Magnesium Glycinate 400 mg (120 caps)',
+    sku: 'MAG-GLY-120',
+    strength: '400MG',
+    form: 'CAP,ORAL',
+    unit: 'BOTTLE (120 caps)',
+    cogs: 950,
+    price: 1900,
+    stock: 150,
+    take: '2',
+    freq: 'QHS (at bedtime)',
+    days: '60',
+  },
+  {
+    name: 'Probiotic 50B CFU (30 caps)',
+    sku: 'PRO-50B-030',
+    strength: '50B CFU',
+    form: 'CAP,ORAL',
+    unit: 'BOTTLE (30 caps)',
+    cogs: 2400,
+    price: 4500,
+    stock: 60,
+    take: '1',
+    freq: 'QD (once a day)',
+    days: '30',
+  },
+  {
+    name: 'Methylated B-Complex (60 caps)',
+    sku: 'MBC-060',
+    strength: '—',
+    form: 'CAP,ORAL',
+    unit: 'BOTTLE (60 caps)',
+    cogs: 1300,
+    price: 2400,
+    stock: 90,
+    take: '1',
+    freq: 'QAM (morning)',
+    days: '60',
+  },
+  {
+    name: 'Curcumin Phytosome 500 mg (60 caps)',
+    sku: 'CUR-PHY-060',
+    strength: '500MG',
+    form: 'CAP,ORAL',
+    unit: 'BOTTLE (60 caps)',
+    cogs: 2200,
+    price: 3800,
+    stock: 45,
+    take: '1',
+    freq: 'BID (twice a day)',
+    days: '30',
+  },
+];
+const sel = computed(() => catalog[picked.value]!);
+const split = computed(() =>
+  previewSplit([
+    { quantity: 1, unit_price_cents: sel.value.price, unit_cogs_cents: sel.value.cogs },
+  ]),
+);
+const marginPct = computed(() => {
+  const bps = marginPercentBps(sel.value.price, sel.value.price - sel.value.cogs);
+  return bps === null ? '—' : (bps / 100).toFixed(1);
+});
+const marginLabel = computed(() => {
+  const bps = marginPercentBps(sel.value.price, sel.value.price - sel.value.cogs);
+  return bps === null ? '—' : formatBps(bps);
+});
+void priceForMarginBps;
+const supps = [
+  {
+    name: 'Omega-3 Fish Oil 1000 mg',
+    sig: '2 softgels daily with food',
+    price: '$32.00',
+    status: 'paid',
+    date: '10/08/24',
+  },
+  {
+    name: 'Vitamin D3 5000 IU',
+    sig: '1 cap QD',
+    price: '$10.00',
+    status: 'paid',
+    date: '10/08/24',
+  },
+  {
+    name: 'Magnesium Glycinate 400 mg',
+    sig: '2 caps QHS',
+    price: '$19.00',
+    status: 'due',
+    date: '10/09/24',
+  },
+  {
+    name: 'Probiotic 50B CFU',
+    sig: '1 cap QD, empty stomach',
+    price: '$45.00',
+    status: 'draft',
+    date: '',
+  },
+];
 
 const encounters = [
   { icon: 'plus', name: 'Functional Med Visit', who: 'M.W.', date: '08/07/2024' },
@@ -213,13 +352,23 @@ const ledger = [
           <div class="xc-panel">
             <div class="xc-panel__hdr xc-red" style="padding: 0">
               <div class="xc-tabs">
-                <span class="xc-tab xc-tab--on">Medications</span>
-                <span class="xc-tab">Supplements</span>
+                <span class="xc-tab" :class="{ 'xc-tab--on': tab === 'meds' }" @click="tab = 'meds'"
+                  >Medications</span
+                >
+                <span
+                  class="xc-tab"
+                  :class="{ 'xc-tab--on': tab === 'supps' }"
+                  @click="tab = 'supps'"
+                  >Supplements</span
+                >
                 <span class="xc-tab">Pellets</span>
                 <span class="xc-tab">IVs</span>
+                <span v-if="tab === 'supps'" class="xc-tabs__add" @click="modal = 'pick'"
+                  >+ Add Supplement</span
+                >
               </div>
             </div>
-            <div class="xc-panel__body">
+            <div v-if="tab === 'meds'" class="xc-panel__body">
               <div
                 v-for="m in meds"
                 :key="m.name"
@@ -243,7 +392,35 @@ const ledger = [
               </div>
               <input class="xc-note" value="Test note" readonly />
             </div>
-            <div class="xc-panel__foot">Most Recent Update: August 7, 2024 by Dr. Marcus Welby</div>
+            <div v-else class="xc-panel__body">
+              <div v-for="sp in supps" :key="sp.name" class="xc-supp">
+                <input type="checkbox" />
+                <span class="xc-supp__name"
+                  ><a href="#">{{ sp.name }}</a>
+                  <span class="xc-supp__sig">— {{ sp.sig }}</span></span
+                >
+                <span
+                  class="xc-supp__status"
+                  :class="{
+                    'xc-supp__status--paid': sp.status === 'paid',
+                    'xc-supp__status--draft': sp.status === 'draft',
+                  }"
+                  >{{
+                    sp.status === 'paid'
+                      ? 'Paid ' + sp.date
+                      : sp.status === 'due'
+                        ? 'Sent ' + sp.date
+                        : 'Draft'
+                  }}</span
+                >
+                <span class="xc-supp__price">{{ sp.price }}</span>
+              </div>
+              <input class="xc-note" value="Draft order: 1 line · $45.00 · not yet sent" readonly />
+            </div>
+            <div class="xc-panel__foot">
+              Most Recent Update: {{ tab === 'meds' ? 'August 7, 2024' : 'October 9, 2026' }} by Dr.
+              Marcus Welby
+            </div>
           </div>
         </div>
 
@@ -424,6 +601,177 @@ const ledger = [
         </div>
       </div>
     </div>
+
+    <!-- ── Modal 1: picker (replica of "+ Add New Rx") ─────────────────── -->
+    <template v-if="modal === 'pick'">
+      <div class="xc-overlay" @click="modal = null"></div>
+      <div class="xc-modal">
+        <div class="xc-modal__hdr">
+          + Add Supplement for Zeus King<span class="xc-modal__close" @click="modal = null">✕</span>
+        </div>
+        <div class="xc-modal__body" style="position: relative">
+          <div class="xc-pick">
+            <div>
+              <input class="xc-pick__search" placeholder="- type to search -" readonly />
+              <div class="xc-pick__list">
+                <div
+                  v-for="(c, i) in catalog"
+                  :key="c.sku"
+                  class="xc-pick__row"
+                  :class="{ 'xc-pick__row--on': i === picked }"
+                  @mouseenter="picked = i"
+                  @click="modal = 'detail'"
+                >
+                  {{ c.name }}
+                </div>
+                <div class="xc-pick__hint">
+                  Above matches are from the practice catalog. To search the full supplier list, add
+                  '+' to your search.
+                </div>
+              </div>
+            </div>
+            <div class="xc-pick__help">
+              Please search for the supplement you are seeking. You may type in as many words as
+              you'd like (including only the first few letters of a word), including brand name,
+              active ingredient, form (i.e. 'Capsule'), strength (i.e. '400mg'), etc.
+              <div class="xc-pick__warn">
+                Adding a supplement here creates a store order for the patient. Add supplements
+                within a SOAP note if they are part of a documented plan.
+              </div>
+            </div>
+          </div>
+          <div class="xc-card">
+            <b class="t">{{ sel.name.toUpperCase() }}</b>
+            <b>SKU:</b> {{ sel.sku }}<br />
+            <b>Strength:</b> {{ sel.strength }}<br />
+            <b>Form:</b> {{ sel.form }}<br />
+            <b>Default price:</b> {{ formatCents(sel.price) }}<br />
+            <b>Your cost (COGS):</b> {{ formatCents(sel.cogs) }}<br />
+            <b>Margin at default:</b> {{ marginLabel }} before platform fee<br />
+            <b>On hand:</b> {{ sel.stock }}<br />
+            <b>Over the Counter?</b> Yes
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ── Modal 2: detail (replica of "+ Complete Rx") ───────────────── -->
+    <template v-if="modal === 'detail'">
+      <div class="xc-overlay" @click="modal = null"></div>
+      <div class="xc-modal" style="top: 110px">
+        <div class="xc-modal__hdr">
+          + Complete Supplement Order for Zeus King
+          <select class="xc-modal__profile">
+            <option>Use Protocol</option>
+            <option>Adrenal support</option>
+            <option>Gut repair</option>
+          </select>
+          <span class="xc-modal__close" @click="modal = null">✕</span>
+        </div>
+        <div class="xc-modal__body">
+          <a href="#" class="xc-back" @click.prevent="modal = 'pick'"
+            >Back to Supplement Selector</a
+          >
+          <div class="xc-detail__title">
+            {{ sel.name.toUpperCase() }} ( Strength:
+            <input type="text" :value="sel.strength" readonly /> )
+          </div>
+
+          <fieldset class="xc-fs">
+            <legend>Patient Sig:</legend>
+            <div class="xc-fs__row">
+              Take
+              <select>
+                <option>2</option>
+              </select>
+              <select>
+                <option>CAP,ORAL</option>
+              </select>
+              <select>
+                <option>ORAL</option>
+              </select>
+              <select>
+                <option>QHS (at bedtime)</option>
+              </select>
+              ( <input type="checkbox" /> <i>or as needed</i>)
+              <span class="xc-fs__hint">Freetext Only</span>
+            </div>
+            <textarea placeholder="Other instructions to the patient"></textarea>
+          </fieldset>
+
+          <fieldset class="xc-fs">
+            <legend>
+              Pricing &amp; Dispensing —
+              <span style="font-weight: 400">Cerbo Supplement Store</span>
+            </legend>
+            <div class="xc-fs__row">
+              Quantity <input type="text" value="1" readonly style="width: 50px" />
+              <select>
+                <option>BOTTLE (120 caps)</option>
+              </select>
+              &nbsp; Patient price $
+              <input type="text" value="19.00" readonly style="width: 70px" /> &nbsp; or target
+              margin <input type="text" value="50.0" readonly style="width: 56px" /> %
+              <span class="xc-fs__hint">Default price pre-filled from the practice catalog</span>
+            </div>
+            <div class="xc-split">
+              <div>
+                Patient pays<b>{{ formatCents(split.total_cents) }}</b>
+              </div>
+              <div>
+                Your cost (COGS)<b class="neg">−{{ formatCents(split.cogs_cents) }}</b>
+              </div>
+              <div>
+                Platform fee (75 bps)<b class="neg">−{{ formatCents(split.fee_cents) }}</b>
+              </div>
+              <div>
+                Your margin<b :class="{ neg: split.margin_cents < 0 }">{{
+                  formatCents(split.margin_cents)
+                }}</b>
+              </div>
+            </div>
+            <div class="xc-fs__row" style="margin-top: 10px">
+              Days supply
+              <input type="text" :value="sel.days" readonly style="width: 50px" /> &nbsp; Refills (
+              <input type="text" value="0" readonly style="width: 40px" /> )
+              <label style="margin-left: auto"
+                ><input type="checkbox" checked /> Send payment link to patient portal</label
+              >
+            </div>
+          </fieldset>
+
+          <fieldset class="xc-fs">
+            <legend>Provider Notes</legend>
+            <div class="xc-fs__row">
+              <label><input type="checkbox" /> <b>This is an ongoing supplement</b></label>
+              <label><input type="checkbox" /> <b>Warn me when this supply runs out</b></label>
+            </div>
+            <textarea
+              placeholder="Private notes about this order (not shown to the patient)"
+            ></textarea>
+            <div style="text-align: right; font-size: 12px; color: #013365; margin-top: 4px">
+              Associated diagnoses with this order
+            </div>
+          </fieldset>
+
+          <div class="xc-ack">
+            <input type="checkbox" checked />
+            <span
+              >I understand this order is placed through the in-house store: the patient pays the
+              practice directly, and the margin and 75 bps platform fee are recorded on the order's
+              ledger.</span
+            >
+          </div>
+
+          <div class="xc-btns">
+            <button class="xc-btn" @click="modal = null">+ Add to Order</button>
+            <button class="xc-btn" @click="modal = 'pick'">+ Add &amp; Add Another</button>
+            <button class="xc-btn" @click="modal = null">+ Add &amp; Send to Patient</button>
+            <button class="xc-btn xc-btn--gray">Add &amp; Print</button>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <div class="xc-gutter"><span>0</span><span>0</span><span>0</span></div>
     <div class="xc-chat"><span>0</span><span>0</span></div>
