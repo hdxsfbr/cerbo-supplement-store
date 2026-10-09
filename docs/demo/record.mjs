@@ -177,22 +177,17 @@ await scene('s02_builder', async () => {
   await page.select('select[aria-label="Patient"]', '1'); // Zeus King
   await sleep(600);
   await clickOn('button::-p-text(Start supplement order)');
-  await page.waitForSelector('select[aria-label="Supplement"]');
+  await page.waitForSelector('input[aria-label="Add a supplement"]');
   await sleep(800);
-  const opts = await page.$$eval('select[aria-label="Supplement"] option', (os) =>
-    os.map((o) => [o.value, o.textContent]),
-  );
-  const omega = opts.find((o) => o[1].includes('Omega-3'))[0];
-  const vitd = opts.find((o) => o[1].includes('Vitamin D3'))[0];
-  await clickOn('select[aria-label="Supplement"]');
-  await page.select('select[aria-label="Supplement"]', omega);
-  await sleep(300);
-  await clickOn('button::-p-text(Add)');
+  // Typeahead picker: type a few letters, pick the highlighted match
+  await clickOn('input[aria-label="Add a supplement"]');
+  await page.type('input[aria-label="Add a supplement"]', 'omega', { delay: 90 });
   await sleep(500);
-  await clickOn('select[aria-label="Supplement"]');
-  await page.select('select[aria-label="Supplement"]', vitd);
-  await sleep(300);
-  await clickOn('button::-p-text(Add)');
+  await clickOn('.ss__row--on');
+  await sleep(700);
+  await page.type('input[aria-label="Add a supplement"]', 'vitamin d', { delay: 90 });
+  await sleep(500);
+  await clickOn('.ss__row--on');
   await sleep(1200);
   // override the vitamin D price to $9.50
   const priceInputs = await page.$$('input[id^="price-"]');

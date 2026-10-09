@@ -28,18 +28,17 @@ page.on('console', (m) => {
 await page.goto(`${BASE}/orders/new`, { waitUntil: 'networkidle0' });
 await page.select('select[aria-label="Patient"]', '2');
 await page.click('button::-p-text(Start supplement order)');
-await page.waitForSelector('select[aria-label="Supplement"]');
-const opts = await page.$$eval('select[aria-label="Supplement"] option', (os) =>
-  os.map((o) => [o.value, o.textContent]),
-);
-const omega = opts.find((o) => o[1].includes('Omega-3'))[0];
-const vitd = opts.find((o) => o[1].includes('Vitamin D3'))[0];
-await page.select('select[aria-label="Supplement"]', omega);
-await page.click('button::-p-text(Add)');
-await page.select('select[aria-label="Supplement"]', omega);
-await page.click('button::-p-text(Add)');
-await page.select('select[aria-label="Supplement"]', vitd);
-await page.click('button::-p-text(Add)');
+await page.waitForSelector('input[aria-label="Add a supplement"]');
+// Typeahead: type, pick the highlighted match with Enter (same picker as the chart)
+const addByTyping = async (text) => {
+  await page.click('input[aria-label="Add a supplement"]');
+  await page.type('input[aria-label="Add a supplement"]', text);
+  await page.waitForSelector('.ss__row--on');
+  await page.keyboard.press('Enter');
+};
+await addByTyping('omega');
+await addByTyping('omega'); // second pick bumps the quantity
+await addByTyping('vitamin d3');
 await new Promise((r) => setTimeout(r, 700));
 const priceInputs = await page.$$('input[id^="price-"]');
 await priceInputs[1].click();

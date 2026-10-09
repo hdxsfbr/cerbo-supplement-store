@@ -3,10 +3,12 @@
 // provider switcher = identity seam); patient routes get the plain portal layout.
 import { computed } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { useLoginStore } from './stores/login';
 import { SEEDED_PROVIDERS, useSessionStore } from './stores/session';
 
 const route = useRoute();
 const session = useSessionStore();
+const login = useLoginStore();
 const surface = computed(() => route.meta.surface ?? 'provider');
 
 function onProviderChange(e: Event): void {
@@ -32,7 +34,14 @@ function onProviderChange(e: Event): void {
         Inventory
       </RouterLink>
       <span class="cerbo-nav__spacer" />
-      <label class="cerbo-nav__acting">
+      <!-- Signed in through the demo login: the acting provider is that doctor, full stop.
+           Without a login (direct URL), the switcher stands in for the EHR session. -->
+      <span v-if="login.isDoctor" class="cerbo-nav__acting">
+        <span class="cerbo-muted">Signed in as</span>
+        <strong>{{ login.account?.name }}</strong>
+        <RouterLink to="/experimental-chart" class="cerbo-link">Chart</RouterLink>
+      </span>
+      <label v-else class="cerbo-nav__acting">
         <span class="cerbo-muted">Acting as</span>
         <select class="cerbo-select" :value="session.providerId" @change="onProviderChange">
           <option v-for="p in SEEDED_PROVIDERS" :key="p.id" :value="p.id">{{ p.name }}</option>

@@ -5,6 +5,7 @@ import { RouterLink, useRouter } from 'vue-router';
 import CerboPanel from '../components/CerboPanel.vue';
 import MoneyInput from '../components/MoneyInput.vue';
 import SplitPreview from '../components/SplitPreview.vue';
+import SupplementSearch from '../components/SupplementSearch.vue';
 import { api } from '../api';
 import {
   PLATFORM_FEE_BPS,
@@ -32,11 +33,8 @@ const patients = ref<Patient[]>([]);
 const supplements = ref<Supplement[]>([]);
 const recentOrders = ref<OrderListRow[]>([]);
 const selectedPatientId = ref<number | null>(null);
-const selectedSupplementId = ref<number | null>(null);
 const loadError = ref<string | null>(null);
 const copied = ref(false);
-
-const supplementById = computed(() => new Map(supplements.value.map((s) => [s.id, s])));
 
 async function loadReference(): Promise<void> {
   const [p, s, o] = await Promise.all([api.patients(), api.supplements(), api.listOrders()]);
@@ -87,12 +85,7 @@ async function startOrder(): Promise<void> {
   recentOrders.value = (await api.listOrders()).orders;
 }
 
-function addSelected(): void {
-  const s =
-    selectedSupplementId.value !== null
-      ? supplementById.value.get(selectedSupplementId.value)
-      : undefined;
-  if (!s) return;
+function addSupplement(s: Supplement): void {
   draft.addLine(s);
   scheduleSave();
 }
@@ -221,20 +214,11 @@ function fmtDate(iso: string | null): string {
           </template>
 
           <div v-if="draft.order && !draft.locked" class="ob__row ob__add">
-            <select v-model="selectedSupplementId" class="cerbo-select" aria-label="Supplement">
-              <option :value="null" disabled>Add a supplement…</option>
-              <option v-for="s in supplements" :key="s.id" :value="s.id">
-                {{ s.name }} — {{ formatCents(s.default_price_cents) }} (COGS
-                {{ formatCents(s.unit_cogs_cents) }}, stock {{ s.inventory_count }})
-              </option>
-            </select>
-            <button
-              class="cerbo-btn"
-              :disabled="selectedSupplementId === null"
-              @click="addSelected"
-            >
-              Add
-            </button>
+            <SupplementSearch
+              :supplements="supplements"
+              :on-order="draft.lines.map((l) => l.supplement_id)"
+              @pick="addSupplement"
+            />
           </div>
 
           <table v-if="draft.lines.length" class="cerbo-table ob__lines">
@@ -484,10 +468,6 @@ function fmtDate(iso: string | null): string {
 }
 .ob__add {
   margin: 8px 0;
-}
-.ob__add .cerbo-select {
-  flex: 1;
-  min-width: 280px;
 }
 .ob__patient {
   display: flex;
