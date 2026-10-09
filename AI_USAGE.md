@@ -294,3 +294,16 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   to stop treating the expected 402 as a page error. Added a favicon to kill a perennial 404.
 - Both features shipped as fake-implementation upgrades behind unchanged seam interfaces
   (DECISIONS #14).
+
+### 2026-10-08 — Demo video
+
+- Produced end to end by the agent, reusing the Chatterbox + cloned-voice setup from
+  `~/code/OpenMontage-latest` / `~/code/chatterbox-play` (Andre's own voice reference; no other
+  voices). Seven narration scenes written as text, synthesised with Chatterbox Turbo on the local
+  GPU, then a puppeteer script screencasts the live Railway app scene by scene, pacing each scene
+  to its narration length, with an injected cursor so clicks are visible. ffmpeg assembles stills
+  and clips to 1920×1080 at 30 fps. Total 2:56, −17.5 LUFS integrated.
+- Two things the first run got wrong: screencasting a static slide produced an empty file (Chrome
+  emits no frames without change) — stills are now rendered from PNG; and clicking "View as
+  patient" opened a new tab the recorder wasn't watching — the script navigates instead.
+- What the agent cannot judge: pronunciation. Andre reviews the narration by ear before use.

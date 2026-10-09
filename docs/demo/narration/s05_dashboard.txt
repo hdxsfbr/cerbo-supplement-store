@@ -1,0 +1,1 @@
+Reporting sums the ledger directly, so the tiles always reconcile with the per-order audits. Inventory moves when an order is paid, and it's flagged when it goes negative.

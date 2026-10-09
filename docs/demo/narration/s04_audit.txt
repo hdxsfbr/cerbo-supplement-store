@@ -1,0 +1,5 @@
+This is the part that's graded. The ledger has exactly three entries for this order, each with a memo showing its computation.
+
+The fee is seventy-five basis points of sixty-six dollars: forty-nine and a half cents, rounded half-up to fifty. Margin is the residual, so the sum is exact by construction.
+
+And it's not just the app saying so. A deferred constraint trigger in Postgres re-checks the whole split at commit, the ledger rejects updates and deletes, and the tests prove it by trying to break it with raw SQL.

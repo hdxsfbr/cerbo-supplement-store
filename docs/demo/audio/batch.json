@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "id": "s01_intro",
+      "text": "Hi, I'm Andre. This is my take-home for Cerbo: an in-house supplement store, built as a vertical slice in Cerbo's own stack. Vue, TypeScript, Fastify, and Postgres.\n\nThe brief: a provider assembles a supplement order, the patient pays, and the system records exactly where every cent goes. Cost of goods, provider margin, and Cerbo's seventy-five basis point fee. Let me show you.",
+      "out": "/home/hdx/code/cerbo-supplement-store/docs/demo/audio/s01_intro.wav"
+    },
+    {
+      "id": "s02_builder",
+      "text": "This is the order builder, styled to live inside Cerbo's chart. I'm acting as Doctor Welby. I pick Zeus King, and add Omega-3 and vitamin D.\n\nPrices pre-fill from the practice default. I can override a line, or type a target margin and let the price derive. The billing panel shows the split live: order total, cost of goods, the platform fee, and the provider's margin after the fee.\n\nWhen I send it, the order locks, and the patient gets what Cerbo would actually send: a secure portal message, and an email nudge.",
+      "out": "/home/hdx/code/cerbo-supplement-store/docs/demo/audio/s02_builder.wav"
+    },
+    {
+      "id": "s03_portal_pay",
+      "text": "Here's the patient side. Their portal shows the balance due, and the message with a pay button. Checkout is a plain card form. Only a token leaves the browser, never the card number.\n\nWatch a declined card first. A four-oh-two comes back, and nothing is written. Now a good card. The receipt shows the card ending in four two four two.\n\nIf I refresh, it's still one payment. The idempotency key replays the original receipt.",
+      "out": "/home/hdx/code/cerbo-supplement-store/docs/demo/audio/s03_portal_pay.wav"
+    },
+    {
+      "id": "s04_audit",
+      "text": "This is the part that's graded. The ledger has exactly three entries for this order, each with a memo showing its computation.\n\nThe fee is seventy-five basis points of sixty-six dollars: forty-nine and a half cents, rounded half-up to fifty. Margin is the residual, so the sum is exact by construction.\n\nAnd it's not just the app saying so. A deferred constraint trigger in Postgres re-checks the whole split at commit, the ledger rejects updates and deletes, and the tests prove it by trying to break it with raw SQL.",
+      "out": "/home/hdx/code/cerbo-supplement-store/docs/demo/audio/s04_audit.wav"
+    },
+    {
+      "id": "s05_dashboard",
+      "text": "Reporting sums the ledger directly, so the tiles always reconcile with the per-order audits. Inventory moves when an order is paid, and it's flagged when it goes negative.",
+      "out": "/home/hdx/code/cerbo-supplement-store/docs/demo/audio/s05_dashboard.wav"
+    },
+    {
+      "id": "s06_under_hood",
+      "text": "Under the hood: all money is integer cents. The split function is pure and property-tested. The integrity migration is the most important file in the repo.\n\nPayments, identity, and messaging are stubbed behind documented seams, so a real processor, or Cerbo's own portal, plugs in without touching the routes.",
+      "out": "/home/hdx/code/cerbo-supplement-store/docs/demo/audio/s06_under_hood.wav"
+    },
+    {
+      "id": "s07_close",
+      "text": "It's deployed on Railway with CI on every push, sixty integration tests on a real Postgres, and an honest decision log, including where AI misled me.\n\nThanks for looking.",
+      "out": "/home/hdx/code/cerbo-supplement-store/docs/demo/audio/s07_close.wav"
+    }
+  ]
+}

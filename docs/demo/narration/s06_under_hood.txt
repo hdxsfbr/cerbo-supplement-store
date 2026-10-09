@@ -1,0 +1,3 @@
+Under the hood: all money is integer cents. The split function is pure and property-tested. The integrity migration is the most important file in the repo.
+
+Payments, identity, and messaging are stubbed behind documented seams, so a real processor, or Cerbo's own portal, plugs in without touching the routes.

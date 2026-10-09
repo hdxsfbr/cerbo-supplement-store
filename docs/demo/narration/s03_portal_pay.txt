@@ -1,0 +1,5 @@
+Here's the patient side. Their portal shows the balance due, and the message with a pay button. Checkout is a plain card form. Only a token leaves the browser, never the card number.
+
+Watch a declined card first. A four-oh-two comes back, and nothing is written. Now a good card. The receipt shows the card ending in four two four two.
+
+If I refresh, it's still one payment. The idempotency key replays the original receipt.

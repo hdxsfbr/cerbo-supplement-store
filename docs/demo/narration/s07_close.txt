@@ -1,0 +1,3 @@
+It's deployed on Railway with CI on every push, sixty integration tests on a real Postgres, and an honest decision log, including where AI misled me.
+
+Thanks for looking.
