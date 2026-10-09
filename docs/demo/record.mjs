@@ -128,7 +128,7 @@ await scene('s02_builder', async () => {
   // type a target margin on vitamin D → price derives to exactly $10.00 (60% on $4.00 COGS),
   // so the order total is $42.00 and the fee lands on a half cent (31.5¢ → 32¢), as narrated.
   const pct = await page.$$('input[aria-label^="Margin percent"]');
-  await clickOn(pct[1], { fx: 0.8 });
+  await clickOn(pct[1], { fx: 0.3 }); // left of the number spinner
   await selectAll(); await typeSlow('60'); await page.keyboard.press('Tab');
   await sleep(2200);
   // hover the billing panel so the eye follows the narration
