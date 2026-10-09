@@ -1,25 +1,18 @@
 <script setup lang="ts">
 // EXPERIMENTAL — a replica of Cerbo's patient chart (docs/cerbo-ui-reference/) with the
-// supplement store embedded where Cerbo keeps its Rx flow: a Supplements tab in the Medications
-// panel, a picker modal ("+ Add Supplement") and a detail modal ("+ Complete Supplement Order").
-// Only the Supplements tab and modals are wired to the API; the rest of the chart is static.
+// supplement store embedded where Cerbo keeps its Rx flow. The Supplements tab is the
+// patient's supplement LIST (clinical: what they take); orders are started from it and
+// completed on the order page. Patient requests from the portal land here too. DECISIONS #17.
+// Only the Supplements tab and its modals are wired to the API; the rest of the chart is static.
 // Route: /experimental-chart.
 import '../styles/chart.css';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { api } from '../api';
+import { api, ApiError } from '../api';
 import { useLoginStore } from '../stores/login';
-import { useOrderDraftStore } from '../stores/orderDraft';
 import { useSessionStore } from '../stores/session';
-import {
-  formatCents,
-  formatBps,
-  marginPercentBps,
-  parseCentsInput,
-  previewSplit,
-  priceForMarginBps,
-} from '../money';
-import type { OrderView, Patient, Supplement } from '../types';
+import { formatCents, formatBps, marginPercentBps } from '../money';
+import type { OrderRequest, Patient, PatientSupplement, Supplement } from '../types';
 
 // The acting provider comes from the demo login (identity seam); the patient being viewed is
 // chosen from the top-right dropdown and kept in the URL (?patient=<id>) so reloads stick.
@@ -27,7 +20,6 @@ useSessionStore();
 const login = useLoginStore();
 const route = useRoute();
 const router = useRouter();
-const draft = useOrderDraftStore();
 const doctorInitials = computed(() =>
   login.account?.role === 'doctor' ? login.account.initials : '',
 );
@@ -45,7 +37,6 @@ function signOut(): void {
   void router.push('/');
 }
 const catalog = ref<Supplement[]>([]);
-const history = ref<OrderView[]>([]); // this patient's sent/paid orders, newest first
 const loading = ref(true);
 const loadError = ref<string | null>(null);
 
@@ -53,25 +44,15 @@ async function loadChart(): Promise<void> {
   loading.value = true;
   loadError.value = null;
   try {
-    const [pts, cat, list] = await Promise.all([
-      api.patients(),
-      api.supplements(),
-      api.listOrders(),
-    ]);
+    const [pts, cat] = await Promise.all([api.patients(), api.supplements()]);
     catalog.value = cat.supplements;
     patients.value = pts.patients;
     const wanted = Number(route.query.patient);
-    const p = pts.patients.find((x) => x.id === wanted) ?? pts.patients[0] ?? null;
-    patient.value = p;
+    patient.value = pts.patients.find((x) => x.id === wanted) ?? pts.patients[0] ?? null;
     modal.value = null;
-    tab.value = 'meds';
-    if (!p) return;
-    const mine = list.orders.filter((o) => o.patient_id === p.id).slice(0, 20);
-    const views = await Promise.all(mine.map((o) => api.getOrder(o.id)));
-    history.value = views.filter((v) => v.status !== 'draft');
-    const open = views.find((v) => v.status === 'draft');
-    if (open) await draft.load(open.id);
-    else draft.reset();
+    tab.value = route.query.tab === 'supps' ? 'supps' : 'meds';
+    selected.value = [];
+    await loadList();
   } catch (err) {
     loadError.value = (err as Error).message;
   } finally {
@@ -84,93 +65,98 @@ watch(
   () => void loadChart(),
 );
 
-// ── Supplements tab ──────────────────────────────────────────────────────────────────────
+// ── Supplements tab: the patient's list + their open requests ────────────────────────────
 const tab = ref<'meds' | 'supps'>('meds');
+const list = ref<PatientSupplement[]>([]);
+const requests = ref<OrderRequest[]>([]);
+const selected = ref<number[]>([]);
+const busy = ref(false);
+const actionError = ref<string | null>(null);
 
-interface SuppRow {
-  key: string;
-  name: string;
-  sig: string | null;
-  cents: number;
-  status: 'paid' | 'due' | 'draft';
-  date: string;
-  orderId: number | null;
-  supplementId: number;
+async function loadList(): Promise<void> {
+  if (!patient.value) {
+    list.value = [];
+    requests.value = [];
+    return;
+  }
+  const r = await api.patientSupplements(patient.value.id);
+  list.value = r.supplements;
+  requests.value = r.requests;
+  const active = new Set(r.supplements.filter((x) => x.status === 'active').map((x) => x.id));
+  selected.value = selected.value.filter((id) => active.has(id));
 }
+
+const activeRows = computed(() => list.value.filter((r) => r.status === 'active'));
+const pastRows = computed(() => list.value.filter((r) => r.status !== 'active'));
+const openRequests = computed(() => requests.value.filter((r) => r.status === 'requested'));
+const lastUpdate = computed(() => {
+  const iso = list.value[0]?.created_at;
+  return iso
+    ? new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
+});
+
 function shortDate(iso: string | null): string {
   if (!iso) return '';
   const d = new Date(iso);
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`;
 }
-const rows = computed<SuppRow[]>(() => {
-  const out: SuppRow[] = draft.lines.map((l) => ({
-    key: `d-${l.supplement_id}`,
-    name: l.name,
-    sig: l.sig ?? null,
-    cents: l.quantity * l.unit_price_cents,
-    status: 'draft',
-    date: '',
-    orderId: draft.order?.id ?? null,
-    supplementId: l.supplement_id,
-  }));
-  for (const o of history.value) {
-    for (const i of o.items) {
-      out.push({
-        key: `o${o.id}-${i.id}`,
-        name: i.name,
-        sig: i.sig,
-        cents: i.line_total_cents,
-        status: o.status === 'paid' ? 'paid' : 'due',
-        date: shortDate(o.status === 'paid' ? o.paid_at : o.sent_at),
-        orderId: o.id,
-        supplementId: i.supplement_id,
-      });
-    }
-  }
-  return out;
-});
-const lastUpdate = computed(() => {
-  const latest = history.value[0];
-  const iso = latest?.paid_at ?? latest?.sent_at ?? latest?.created_at;
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-});
-const draftSummary = computed(() => {
-  const n = draft.lines.length;
-  if (n === 0) return null;
-  return `Draft order: ${n} line${n === 1 ? '' : 's'} · ${formatCents(draft.preview.total_cents)} · not yet sent`;
-});
-const actionError = ref<string | null>(null);
-const busy = ref(false);
-
-async function removeDraftLine(supplementId: number): Promise<void> {
-  draft.removeLine(supplementId);
-  await draft.flush();
-  actionError.value = draft.error;
+function orderLabel(row: PatientSupplement): string {
+  const o = row.latest_order;
+  if (!o) return '';
+  if (o.status === 'paid') return `Paid ${shortDate(o.paid_at)}`;
+  if (o.status === 'awaiting_payment') return `Sent ${shortDate(o.sent_at)}`;
+  return 'In draft';
+}
+function toggle(id: number): void {
+  selected.value = selected.value.includes(id)
+    ? selected.value.filter((x) => x !== id)
+    : [...selected.value, id];
 }
 
-async function sendDraft(): Promise<void> {
-  if (!draft.canSend || busy.value) return;
+/** Wraps an API action: one in flight at a time, errors surface in the tab, list reloads. */
+async function act(fn: () => Promise<void>): Promise<void> {
+  if (busy.value) return;
   busy.value = true;
   actionError.value = null;
   try {
-    const sent = await draft.send();
-    if (!sent) {
-      actionError.value = draft.error ?? 'Could not send the order';
-      return;
-    }
-    history.value.unshift(sent);
-    draft.reset();
+    await fn();
+    await loadList();
+  } catch (err) {
+    actionError.value = err instanceof ApiError ? err.message : (err as Error).message;
   } finally {
     busy.value = false;
   }
 }
 
-// ── Modal 1: picker ──────────────────────────────────────────────────────────────────────
+/** Start an order from the selected rows (or a request) and continue on the order page. */
+function createOrder(from: { patient_supplement_ids?: number[]; request_id?: number }): void {
+  const p = patient.value;
+  if (!p) return;
+  void act(async () => {
+    const view = await api.createOrder(p.id, from);
+    await router.push(`/orders/${view.id}`);
+  });
+}
+function discontinue(row: PatientSupplement): void {
+  void act(async () => {
+    await api.patchPatientSupplement(row.id, { status: 'discontinued' });
+  });
+}
+function restore(row: PatientSupplement): void {
+  void act(async () => {
+    await api.patchPatientSupplement(row.id, { status: 'active' });
+  });
+}
+function decline(req: OrderRequest): void {
+  const note = window.prompt('Message to the patient (optional):', '');
+  if (note === null) return;
+  void act(async () => {
+    await api.declineRequest(req.id, note.trim() || null);
+  });
+}
+
+// ── Modal 1: picker (the practice catalog) ───────────────────────────────────────────────
 const modal = ref<null | 'pick' | 'detail'>(null);
 const query = ref('');
 const picked = ref(0);
@@ -187,6 +173,9 @@ function marginAtDefault(s: Supplement): string {
   const bps = marginPercentBps(s.default_price_cents, s.default_price_cents - s.unit_cogs_cents);
   return bps === null ? '—' : formatBps(bps);
 }
+function onList(s: Supplement): boolean {
+  return activeRows.value.some((r) => r.supplement_id === s.id);
+}
 function openPicker(): void {
   query.value = '';
   picked.value = 0;
@@ -194,7 +183,7 @@ function openPicker(): void {
   modal.value = 'pick';
 }
 
-// ── Modal 2: detail ──────────────────────────────────────────────────────────────────────
+// ── Modal 2: directions (Patient Sig) → add to the list ──────────────────────────────────
 const TAKE = ['1', '2', '3', '4'];
 const UNITS = ['capsule(s)', 'softgel(s)', 'tablet(s)', 'scoop(s)', 'dropper(s)', 'packet(s)'];
 const FREQ = [
@@ -207,16 +196,7 @@ const FREQ = [
   'as needed',
 ];
 const chosen = ref<Supplement | null>(null);
-const form = ref({
-  take: '2',
-  unit: 'capsule(s)',
-  freq: 'once daily',
-  note: '',
-  qty: '1',
-  price: '',
-  margin: '',
-  ack: true,
-});
+const form = ref({ take: '1', unit: 'capsule(s)', freq: 'once daily', note: '' });
 
 function guessUnit(name: string): string {
   const n = name.toLowerCase();
@@ -226,60 +206,11 @@ function guessUnit(name: string): string {
   if (n.includes('drop') || n.includes('liquid')) return 'dropper(s)';
   return 'capsule(s)';
 }
-function parseSig(sig: string): { take: string; unit: string; freq: string; note: string } | null {
-  const m = /^Take (\d) (\S+) (.+?)(?:\. (.*))?$/.exec(sig);
-  if (!m) return null;
-  return { take: m[1]!, unit: m[2]!, freq: m[3]!, note: m[4] ?? '' };
-}
 function openDetail(s: Supplement): void {
   chosen.value = s;
-  const existing = draft.lines.find((l) => l.supplement_id === s.id);
-  const price = existing?.unit_price_cents ?? s.default_price_cents;
-  const parsed = existing?.sig ? parseSig(existing.sig) : null;
-  form.value = {
-    take: parsed && TAKE.includes(parsed.take) ? parsed.take : '1',
-    unit: parsed && UNITS.includes(parsed.unit) ? parsed.unit : guessUnit(s.name),
-    freq: parsed && FREQ.includes(parsed.freq) ? parsed.freq : 'once daily',
-    note: parsed ? parsed.note : existing?.sig ? existing.sig : '',
-    qty: String(existing?.quantity ?? 1),
-    price: formatCents(price).replace(/^\$/, ''),
-    margin: marginText(price, s.unit_cogs_cents),
-    ack: true,
-  };
+  form.value = { take: '1', unit: guessUnit(s.name), freq: 'once daily', note: '' };
   actionError.value = null;
   modal.value = 'detail';
-}
-function marginText(priceCents: number, cogs: number): string {
-  const bps = marginPercentBps(priceCents, priceCents - cogs);
-  return bps === null ? '' : (bps / 100).toFixed(1);
-}
-const priceCents = computed(() => parseCentsInput(form.value.price));
-const qty = computed(() => {
-  const n = Number(form.value.qty);
-  return Number.isInteger(n) && n > 0 && n <= 1000 ? n : null;
-});
-const formValid = computed(() => priceCents.value !== null && qty.value !== null && form.value.ack);
-const detailSplit = computed(() =>
-  chosen.value && priceCents.value !== null && qty.value !== null
-    ? previewSplit([
-        {
-          quantity: qty.value,
-          unit_price_cents: priceCents.value,
-          unit_cogs_cents: chosen.value.unit_cogs_cents,
-        },
-      ])
-    : null,
-);
-function onPriceInput(): void {
-  if (!chosen.value || priceCents.value === null) return;
-  form.value.margin = marginText(priceCents.value, chosen.value.unit_cogs_cents);
-}
-function onMarginInput(): void {
-  if (!chosen.value) return;
-  const pct = Number(form.value.margin);
-  if (!Number.isFinite(pct)) return;
-  const cents = priceForMarginBps(chosen.value.unit_cogs_cents, Math.round(pct * 100));
-  if (cents !== null) form.value.price = formatCents(cents).replace(/^\$/, '');
 }
 const composedSig = computed(() => {
   const f = form.value;
@@ -287,43 +218,16 @@ const composedSig = computed(() => {
   const note = f.note.trim();
   return note ? `${base}. ${note}` : base;
 });
-
-async function commit(then: 'close' | 'another' | 'send'): Promise<void> {
+function addToList(then: 'close' | 'another'): void {
+  const p = patient.value;
   const s = chosen.value;
-  if (!patient.value || !s || !formValid.value || busy.value) return;
-  busy.value = true;
-  actionError.value = null;
-  try {
-    if (!draft.order) await draft.start(patient.value.id);
-    if (!draft.lines.some((l) => l.supplement_id === s.id)) draft.addLine(s);
-    draft.setQuantity(s.id, qty.value!);
-    draft.setPrice(s.id, priceCents.value!);
-    draft.setSig(s.id, composedSig.value);
-    await draft.flush();
-    if (draft.error) {
-      actionError.value = draft.error;
-      return;
-    }
-    if (then === 'send') {
-      const sent = await draft.send();
-      if (!sent) {
-        actionError.value = draft.error ?? 'Could not send the order';
-        return;
-      }
-      history.value.unshift(sent);
-      draft.reset();
-      modal.value = null;
-      tab.value = 'supps';
-      return;
-    }
+  if (!p || !s) return;
+  void act(async () => {
+    await api.addPatientSupplement(p.id, s.id, composedSig.value);
     tab.value = 'supps';
     if (then === 'another') openPicker();
     else modal.value = null;
-  } catch (err) {
-    actionError.value = (err as Error).message;
-  } finally {
-    busy.value = false;
-  }
+  });
 }
 
 const encounters = [
@@ -548,7 +452,9 @@ const ledger = [
                   class="xc-tab"
                   :class="{ 'xc-tab--on': tab === 'supps' }"
                   @click="tab = 'supps'"
-                  >Supplements</span
+                  >Supplements<span v-if="openRequests.length" class="xc-tab__badge">{{
+                    openRequests.length
+                  }}</span></span
                 >
                 <span class="xc-tab">Pellets</span>
                 <span class="xc-tab">IVs</span>
@@ -583,61 +489,79 @@ const ledger = [
             </div>
             <div v-else class="xc-panel__body xc-panel__body--scroll">
               <div v-if="loading" class="xc-supp__empty">Loading…</div>
-              <div v-else-if="loadError" class="xc-supp__empty xc-supp__err">
-                {{ loadError }}
-              </div>
-              <div v-else-if="rows.length === 0" class="xc-supp__empty">
-                No supplements on file. Use + Add Supplement to start an order.
-              </div>
-              <div v-for="sp in rows" :key="sp.key" class="xc-supp">
-                <input type="checkbox" />
-                <span class="xc-supp__name"
-                  ><a
-                    href="#"
-                    @click.prevent="
-                      sp.status === 'draft' &&
-                      openDetail(catalog.find((c) => c.id === sp.supplementId)!)
-                    "
-                    >{{ sp.name }}</a
+              <div v-else-if="loadError" class="xc-supp__empty xc-supp__err">{{ loadError }}</div>
+              <template v-else>
+                <div v-for="r in openRequests" :key="r.id" class="xc-req">
+                  <div>
+                    <b>Patient request</b> · {{ shortDate(r.created_at) }} ·
+                    {{ r.items.map((i) => i.name).join(', ') }}
+                    <i v-if="r.note">— “{{ r.note }}”</i>
+                  </div>
+                  <div class="xc-req__act">
+                    <RouterLink v-if="r.order_id" :to="`/orders/${r.order_id}`"
+                      >Open draft order</RouterLink
+                    >
+                    <a v-else href="#" @click.prevent="createOrder({ request_id: r.id })"
+                      >Create order</a
+                    >
+                    <a href="#" @click.prevent="decline(r)">Decline</a>
+                  </div>
+                </div>
+                <div v-if="activeRows.length === 0" class="xc-supp__empty">
+                  No supplements on this patient’s list. Use + Add Supplement.
+                </div>
+                <div v-for="row in activeRows" :key="row.id" class="xc-supp">
+                  <input
+                    type="checkbox"
+                    :checked="selected.includes(row.id)"
+                    :title="`Select ${row.name} for an order`"
+                    @change="toggle(row.id)"
+                  />
+                  <span class="xc-supp__name"
+                    >{{ row.name }}
+                    <span v-if="row.sig" class="xc-supp__sig">— {{ row.sig }}</span>
+                    <span v-if="row.added_by === 'patient'" class="xc-supp__self"
+                      >patient-reported</span
+                    ></span
                   >
-                  <span v-if="sp.sig" class="xc-supp__sig">— {{ sp.sig }}</span></span
-                >
-                <router-link
-                  v-if="sp.orderId !== null && sp.status !== 'draft'"
-                  :to="`/orders/${sp.orderId}`"
-                  class="xc-supp__status"
-                  :class="{ 'xc-supp__status--paid': sp.status === 'paid' }"
-                  >{{ (sp.status === 'paid' ? 'Paid ' : 'Sent ') + sp.date }}</router-link
-                >
-                <span v-else class="xc-supp__status xc-supp__status--draft">Draft</span>
-                <span class="xc-supp__price">{{ formatCents(sp.cents) }}</span>
-                <span
-                  class="xc-supp__rm"
-                  :class="{ 'xc-supp__rm--spacer': sp.status !== 'draft' }"
-                  title="Remove from draft"
-                  @click="sp.status === 'draft' && removeDraftLine(sp.supplementId)"
-                  >✕</span
-                >
-              </div>
-              <div v-if="draftSummary" class="xc-note xc-note--draft">
-                {{ draftSummary }}
-                <a
-                  href="#"
-                  :class="{ 'xc-disabled': !draft.canSend || busy }"
-                  @click.prevent="sendDraft"
-                  >Send to patient</a
-                >
-              </div>
-              <div v-if="actionError && !modal" class="xc-supp__err">{{ actionError }}</div>
+                  <RouterLink
+                    v-if="row.latest_order"
+                    :to="`/orders/${row.latest_order.id}`"
+                    class="xc-supp__status"
+                    :class="{
+                      'xc-supp__status--paid': row.latest_order.status === 'paid',
+                      'xc-supp__status--draft': row.latest_order.status === 'draft',
+                    }"
+                    >{{ orderLabel(row) }}</RouterLink
+                  >
+                  <span class="xc-supp__rm" title="Discontinue" @click="discontinue(row)">✕</span>
+                </div>
+                <div v-if="pastRows.length" class="xc-supp__past">
+                  Discontinued:
+                  <span v-for="row in pastRows" :key="row.id"
+                    >{{ row.name }} <a href="#" @click.prevent="restore(row)">restore</a></span
+                  >
+                </div>
+                <div class="xc-note xc-note--draft">
+                  <span>{{ selected.length }} selected</span>
+                  <a
+                    href="#"
+                    :class="{ 'xc-disabled': selected.length === 0 || busy }"
+                    @click.prevent="createOrder({ patient_supplement_ids: selected })"
+                    >Create supplement order</a
+                  >
+                </div>
+                <div v-if="actionError && !modal" class="xc-supp__err">{{ actionError }}</div>
+              </template>
             </div>
             <div class="xc-panel__foot">
               <template v-if="tab === 'meds'"
                 >Most Recent Update: August 7, 2024 by Dr. Marcus Welby</template
               >
               <template v-else-if="lastUpdate"
-                >Most Recent Update: {{ lastUpdate }} by {{ history[0]?.provider.name }}</template
+                >Most Recent Update: {{ lastUpdate }} by {{ providerName }}</template
               >
-              <template v-else>No orders yet</template>
+              <template v-else>No supplements on file</template>
             </div>
           </div>
         </div>
@@ -861,12 +785,12 @@ const ledger = [
               </div>
             </div>
             <div class="xc-pick__help">
-              Search the practice catalog by product name or SKU. Pick a supplement to set the
-              patient's directions, quantity and price; the order is sent to the patient portal for
-              payment.
+              Search the practice catalog by product name or SKU. Pick a supplement and set the
+              patient's directions; it goes on their supplement list. Select list items to start an
+              order.
               <div class="xc-pick__warn">
-                Adding a supplement here creates a store order for the patient. Add supplements
-                within a SOAP note if they are part of a documented plan.
+                This adds to the patient's supplement list only. Pricing and sending happen when you
+                create an order from the list.
               </div>
             </div>
           </div>
@@ -877,22 +801,18 @@ const ledger = [
             <b>Your cost (COGS):</b> {{ formatCents(hovered.unit_cogs_cents) }}<br />
             <b>Margin at default:</b> {{ marginAtDefault(hovered) }} before platform fee<br />
             <b>On hand:</b> {{ hovered.inventory_count }}<br />
-            <b
-              v-if="draft.lines.some((l) => l.supplement_id === hovered!.id)"
-              class="xc-card__draft"
-              >Already on the draft order — opening it edits that line</b
-            >
+            <b v-if="onList(hovered)" class="xc-card__draft">Already on this patient's list</b>
           </div>
         </div>
       </div>
     </template>
 
-    <!-- ── Modal 2: detail (replica of "+ Complete Rx") ───────────────── -->
+    <!-- ── Modal 2: directions (replica of "+ Complete Rx", Patient Sig only) ─── -->
     <template v-if="modal === 'detail' && chosen">
       <div class="xc-overlay" @click="modal = null"></div>
       <div class="xc-modal" style="top: 110px">
         <div class="xc-modal__hdr">
-          + Complete Supplement Order for {{ patient?.name ?? '…' }}
+          + Add {{ chosen.name }} for {{ patient?.name ?? '…' }}
           <span class="xc-modal__close" @click="modal = null">✕</span>
         </div>
         <div class="xc-modal__body">
@@ -923,83 +843,13 @@ const ledger = [
             ></textarea>
           </fieldset>
 
-          <fieldset class="xc-fs">
-            <legend>
-              Pricing &amp; Dispensing —
-              <span style="font-weight: 400">Cerbo Supplement Store</span>
-            </legend>
-            <div class="xc-fs__row">
-              Quantity
-              <input
-                v-model="form.qty"
-                type="text"
-                inputmode="numeric"
-                style="width: 50px"
-                :class="{ 'xc-bad': qty === null }"
-              />
-              &nbsp; Patient price $
-              <input
-                v-model="form.price"
-                type="text"
-                inputmode="decimal"
-                style="width: 70px"
-                :class="{ 'xc-bad': priceCents === null }"
-                @input="onPriceInput"
-              />
-              &nbsp; or target margin
-              <input
-                v-model="form.margin"
-                type="text"
-                inputmode="decimal"
-                style="width: 56px"
-                @input="onMarginInput"
-              />
-              %
-              <span class="xc-fs__hint">Default price pre-filled from the practice catalog</span>
-            </div>
-            <div v-if="detailSplit" class="xc-split">
-              <div>
-                Patient pays<b>{{ formatCents(detailSplit.total_cents) }}</b>
-              </div>
-              <div>
-                Your cost (COGS)<b class="neg">−{{ formatCents(detailSplit.cogs_cents) }}</b>
-              </div>
-              <div>
-                Platform fee (75 bps)<b class="neg">−{{ formatCents(detailSplit.fee_cents) }}</b>
-              </div>
-              <div>
-                Your margin<b :class="{ neg: detailSplit.margin_cents < 0 }">{{
-                  formatCents(detailSplit.margin_cents)
-                }}</b>
-              </div>
-            </div>
-            <div v-else class="xc-split xc-split--invalid">
-              Enter a whole-number quantity and a price in dollars and cents to see the split.
-            </div>
-            <div v-if="detailSplit && detailSplit.margin_cents < 0" class="xc-supp__err">
-              This price is below your cost. The order can still be sent.
-            </div>
-          </fieldset>
-
-          <div class="xc-ack">
-            <input v-model="form.ack" type="checkbox" />
-            <span
-              >I understand this order is placed through the in-house store: the patient pays the
-              practice directly, and the margin and 75 bps platform fee are recorded on the order's
-              ledger.</span
-            >
-          </div>
-
           <div v-if="actionError" class="xc-supp__err">{{ actionError }}</div>
           <div class="xc-btns">
-            <button class="xc-btn" :disabled="!formValid || busy" @click="commit('close')">
-              + Add to Order
+            <button class="xc-btn" :disabled="busy" @click="addToList('close')">
+              + Add to List
             </button>
-            <button class="xc-btn" :disabled="!formValid || busy" @click="commit('another')">
+            <button class="xc-btn" :disabled="busy" @click="addToList('another')">
               + Add &amp; Add Another
-            </button>
-            <button class="xc-btn" :disabled="!formValid || busy" @click="commit('send')">
-              + Add &amp; Send to Patient
             </button>
           </div>
         </div>

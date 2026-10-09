@@ -221,3 +221,23 @@ unchanged `/pay/:token` checkout, which now returns to the new portal for signed
 **Trade-off:** `POST /api/portal/session` hands out a capability token for any patient id with
 no credential check. That is acceptable only because the whole identity seam is a stand-in;
 it is documented as such and would be the first thing replaced by Cerbo's portal session.
+
+## 17. The supplement list is clinical; orders are transactions started from it
+
+**Date:** 2026-10-09
+**Context:** The chart's first Supplements tab mixed "what this patient takes" with order lines
+in one stream, and the portal's My Supplements did the same. Andre asked what the proper
+workflow is for a doctor to start an order and for a patient to start one.
+**Decision:** Two concepts, two tables. `patient_supplements` is the list: catalog item + sig +
+status, added by the provider (chart) or the patient (portal, self-reported). Orders are
+created *from* selected list rows (`POST /api/orders` with `patient_supplement_ids`), pre-filled
+at catalog price with the list sig, and completed on the existing order page. Each order line
+remembers its list row, so the list shows the latest order state per item. A patient can
+*request* an order for list rows (`order_requests`); the request is never an order. The provider
+either starts an order from it (prices it, sends it, request → fulfilled on send) or declines it
+with a note that becomes a portal message. Patients never see prices or margins in the list.
+**Trade-off:** One more hop for the doctor (list → select → order page) versus the earlier
+modal that priced and sent in place. In exchange the chart reads like Cerbo (a medications-style
+list) and the money path has exactly one entry point, the order page, which keeps the split and
+ledger rules untouched. Requests add a small inbox the provider must watch; we surface it as a
+badge on the tab rather than a new page.

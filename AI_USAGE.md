@@ -344,3 +344,14 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   with a test Visa → back to the portal with balance, statement credit and card tile updated.
 - Judgment calls to confirm: My Supplements lists what the practice ordered (paid or not, with a
   Pay Now button on unpaid lines); Cerbo's self-reported supplement lookup stays static.
+
+### 2026-10-09 — Supplement list vs. orders, and patient requests
+
+- Andre spotted that the chart's Supplements tab mixed the clinical list with order lines.
+  The agent proposed the split in DECISIONS #17 (list table, orders from selected rows,
+  patient requests gated by the provider); Andre approved it and asked for a clean refactor.
+- Removed: the chart's in-place pricing modal and its use of the order-draft store, the
+  draft store's `setSig`, the static supplement data, and the CSS those left behind.
+- Added migration 008, provider list/request routes, portal self-add/request endpoints, and an
+  8-test integration file covering add, duplicate, cross-provider denial, order-from-list,
+  request → fulfil, and decline → message. Verified the full loop in headless Chrome.

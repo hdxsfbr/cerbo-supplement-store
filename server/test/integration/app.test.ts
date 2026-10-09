@@ -15,7 +15,7 @@ describe('app shell (T010)', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.migrations.applied).toBeGreaterThanOrEqual(6);
-    expect(res.body.migrations.latest).toBe('007_order_item_sig.sql');
+    expect(res.body.migrations.latest).toBe('008_supplement_list_and_requests.sql');
   });
 
   it('unknown API route → 404 error envelope', async () => {

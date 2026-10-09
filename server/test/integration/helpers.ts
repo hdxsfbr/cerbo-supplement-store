@@ -20,6 +20,7 @@ import {
   PortalNotifier,
   type Notifier,
   type PaymentNotification,
+  type RequestDeclinedNotification,
 } from '../../src/seams/notifier.js';
 
 export const PUBLIC_WEB_ORIGIN = 'http://web.test';
@@ -36,6 +37,11 @@ export class RecordingNotifier implements Notifier {
     }
     this.sent.push(n);
     await this.inner?.orderReadyForPayment(n);
+  }
+  declined: RequestDeclinedNotification[] = [];
+  async requestDeclined(n: RequestDeclinedNotification): Promise<void> {
+    this.declined.push(n);
+    await this.inner?.requestDeclined(n);
   }
 }
 

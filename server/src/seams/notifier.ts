@@ -19,8 +19,17 @@ export interface PaymentNotification {
   portalUrl: string;
 }
 
+export interface RequestDeclinedNotification {
+  patient: { id: number; name: string; email: string | null };
+  providerName: string;
+  note: string | null;
+  portalUrl: string;
+}
+
 export interface Notifier {
   orderReadyForPayment(n: PaymentNotification): Promise<void>;
+  /** The provider declined a patient's supplement request; tell the patient (portal message). */
+  requestDeclined(n: RequestDeclinedNotification): Promise<void>;
 }
 
 export class NoopNotifier implements Notifier {
@@ -31,6 +40,10 @@ export class NoopNotifier implements Notifier {
       `[notifier:noop] would message ${n.patient.name} (${n.patient.email ?? 'no email'}) ` +
         `about order ${n.orderId}: ${n.checkoutUrl}`,
     );
+  }
+
+  async requestDeclined(n: RequestDeclinedNotification): Promise<void> {
+    this.log(`[notifier:noop] would tell ${n.patient.name} their supplement request was declined`);
   }
 }
 
@@ -64,9 +77,27 @@ export function composeNotifications(n: PaymentNotification) {
   return [portal, email];
 }
 
+export function composeDeclined(n: RequestDeclinedNotification) {
+  return {
+    channel: 'portal_message' as const,
+    recipient: null,
+    subject: `About your supplement request`,
+    body:
+      `${n.providerName} reviewed your supplement request and did not place an order this time.` +
+      (n.note ? `\n\n"${n.note}"` : '') +
+      `\n\nIf you have questions, reply to this message.`,
+    link: null,
+  };
+}
+
 /** Writes the portal message + email nudge to `notifications` (the demo's delivery channel). */
 export class PortalNotifier implements Notifier {
   constructor(private readonly sql: Queryable) {}
+
+  async requestDeclined(n: RequestDeclinedNotification): Promise<void> {
+    const row = { ...composeDeclined(n), patient_id: n.patient.id, order_id: null };
+    await this.sql`INSERT INTO notifications ${this.sql([row])}`;
+  }
 
   async orderReadyForPayment(n: PaymentNotification): Promise<void> {
     const rows = composeNotifications(n)

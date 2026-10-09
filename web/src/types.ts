@@ -42,6 +42,8 @@ export interface OrderItemView {
   unit_price_cents: number;
   /** Patient directions, free text (optional) */
   sig: string | null;
+  /** The patient-list row this line came from, if any */
+  patient_supplement_id: number | null;
   line_total_cents: number;
   line_cogs_cents: number;
   below_cogs: boolean;
@@ -106,6 +108,10 @@ export interface PortalView {
   }[];
   balance_due_cents: number;
   payment_method: { brand: string; last4: string } | null;
+  supplements: PatientSupplement[];
+  requests: OrderRequest[];
+  /** Names only — the patient never sees prices here */
+  catalog: { id: number; name: string; sku: string | null }[];
 }
 
 export interface PortalSession {
@@ -131,6 +137,42 @@ export interface OrderLineInput {
   quantity: number;
   unit_price_cents: number;
   sig?: string | null;
+  patient_supplement_id?: number | null;
+}
+
+/** A row on the patient's supplement list (clinical; no money). */
+export interface PatientSupplement {
+  id: number;
+  supplement_id: number;
+  name: string;
+  sku: string | null;
+  sig: string | null;
+  status: 'active' | 'discontinued';
+  added_by: 'provider' | 'patient';
+  created_at: string;
+  latest_order: {
+    id: number;
+    status: OrderStatus;
+    sent_at: string | null;
+    paid_at: string | null;
+    checkout_url: string | null;
+  } | null;
+}
+
+/** A patient asking the provider to order some list rows. Never an order by itself. */
+export interface OrderRequest {
+  id: number;
+  status: 'requested' | 'fulfilled' | 'declined';
+  note: string | null;
+  decline_note: string | null;
+  order_id: number | null;
+  created_at: string;
+  resolved_at: string | null;
+  items: { patient_supplement_id: number; name: string; sig: string | null }[];
+}
+export interface ProviderOrderRequest extends OrderRequest {
+  patient_id: number;
+  patient_name: string;
 }
 
 export interface CheckoutView {

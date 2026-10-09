@@ -63,6 +63,7 @@ export const useOrderDraftStore = defineStore('orderDraft', () => {
       unit_cogs_cents: i.unit_cogs_cents,
       price_valid: true,
       ...(i.sig ? { sig: i.sig } : {}),
+      ...(i.patient_supplement_id ? { patient_supplement_id: i.patient_supplement_id } : {}),
     }));
     savedRevision.value = revision.value;
   }
@@ -135,17 +136,6 @@ export const useOrderDraftStore = defineStore('orderDraft', () => {
     touch();
   }
 
-  /** Patient directions for a line; empty/whitespace clears it. */
-  function setSig(supplementId: number, sig: string): void {
-    const line = lines.value.find((l) => l.supplement_id === supplementId);
-    if (!line || locked.value) return;
-    const t = sig.trim();
-    if ((line.sig ?? '') === t) return;
-    if (t) line.sig = t;
-    else delete line.sig;
-    touch();
-  }
-
   function setQuantity(supplementId: number, quantity: number): void {
     const line = lines.value.find((l) => l.supplement_id === supplementId);
     if (!line || locked.value) return;
@@ -164,12 +154,16 @@ export const useOrderDraftStore = defineStore('orderDraft', () => {
     saving.value = true;
     error.value = null;
     try {
-      const payload = lines.value.map(({ supplement_id, quantity, unit_price_cents, sig }) => ({
-        supplement_id,
-        quantity,
-        unit_price_cents,
-        ...(sig ? { sig } : {}), // omitted when empty so the wire shape is unchanged for plain lines
-      }));
+      const payload = lines.value.map(
+        ({ supplement_id, quantity, unit_price_cents, sig, patient_supplement_id }) => ({
+          supplement_id,
+          quantity,
+          unit_price_cents,
+          // omitted when empty so the wire shape is unchanged for plain lines
+          ...(sig ? { sig } : {}),
+          ...(patient_supplement_id ? { patient_supplement_id } : {}),
+        }),
+      );
       const view = await api.putItems(orderId, payload);
       if (order.value?.id !== orderId) return; // user switched orders; stale response
       if (revision.value === rev) {
@@ -247,7 +241,6 @@ export const useOrderDraftStore = defineStore('orderDraft', () => {
     removeLine,
     setPrice,
     setPriceValidity,
-    setSig,
     setQuantity,
     touch,
     save,

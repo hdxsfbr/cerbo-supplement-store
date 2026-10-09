@@ -31,6 +31,7 @@ export interface OrderItemRow {
   unit_cogs_cents: number;
   unit_price_cents: number;
   sig: string | null;
+  patient_supplement_id: number | null;
 }
 
 export interface LoadedOrder {
@@ -62,7 +63,8 @@ export async function loadOrder(
   if (!order) return null;
 
   const items = await sql<OrderItemRow[]>`
-    SELECT oi.id, oi.supplement_id, s.name, s.sku, oi.quantity, oi.unit_cogs_cents, oi.unit_price_cents, oi.sig
+    SELECT oi.id, oi.supplement_id, s.name, s.sku, oi.quantity, oi.unit_cogs_cents, oi.unit_price_cents, oi.sig,
+           oi.patient_supplement_id
     FROM order_items oi JOIN supplements s ON s.id = oi.supplement_id
     WHERE oi.order_id = ${order.id}
     ORDER BY oi.id`;
@@ -102,6 +104,7 @@ export function providerOrderView(loaded: LoadedOrder, publicWebOrigin: string) 
       unit_cogs_cents: i.unit_cogs_cents,
       unit_price_cents: i.unit_price_cents,
       sig: i.sig,
+      patient_supplement_id: i.patient_supplement_id,
       line_total_cents: i.quantity * i.unit_price_cents,
       line_cogs_cents: i.quantity * i.unit_cogs_cents,
       below_cogs: i.unit_price_cents < i.unit_cogs_cents,

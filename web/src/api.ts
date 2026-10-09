@@ -9,8 +9,11 @@ import type {
   LedgerView,
   OrderLineInput,
   OrderListRow,
+  OrderRequest,
   OrderView,
   Patient,
+  PatientSupplement,
+  ProviderOrderRequest,
   PaymentMethodInput,
   PortalSession,
   PortalView,
@@ -81,7 +84,29 @@ export const api = {
       '/api/patients',
     ),
 
-  createOrder: (patient_id: number) => request<OrderView>('POST', '/api/orders', { patient_id }),
+  createOrder: (
+    patient_id: number,
+    from?: { patient_supplement_ids?: number[]; request_id?: number },
+  ) => request<OrderView>('POST', '/api/orders', { patient_id, ...(from ?? {}) }),
+
+  // The patient's supplement list (provider side) and order requests
+  patientSupplements: (patientId: number) =>
+    request<{ supplements: PatientSupplement[]; requests: OrderRequest[] }>(
+      'GET',
+      `/api/patients/${patientId}/supplements`,
+    ),
+  addPatientSupplement: (patientId: number, supplement_id: number, sig: string | null) =>
+    request<PatientSupplement>('POST', `/api/patients/${patientId}/supplements`, {
+      supplement_id,
+      sig,
+    }),
+  patchPatientSupplement: (
+    id: number,
+    patch: { sig?: string | null; status?: 'active' | 'discontinued' },
+  ) => request<PatientSupplement>('PATCH', `/api/patient-supplements/${id}`, patch),
+  requests: () => request<{ requests: ProviderOrderRequest[] }>('GET', '/api/requests'),
+  declineRequest: (id: number, note: string | null) =>
+    request<ProviderOrderRequest>('POST', `/api/requests/${id}/decline`, { note }),
   getOrder: (id: number) => request<OrderView>('GET', `/api/orders/${id}`),
   putItems: (id: number, items: OrderLineInput[]) =>
     request<OrderView>('PUT', `/api/orders/${id}/items`, { items }),
@@ -98,6 +123,13 @@ export const api = {
   portal: (token: string) => request<PortalView>('GET', `/api/portal/${token}`),
   portalSignIn: (patient_id: number) =>
     request<PortalSession>('POST', '/api/portal/session', { patient_id }),
+  portalAddSupplement: (token: string, supplement_id: number, sig: string | null) =>
+    request<PatientSupplement>('POST', `/api/portal/${token}/supplements`, { supplement_id, sig }),
+  portalRequest: (token: string, patient_supplement_ids: number[], note: string | null) =>
+    request<OrderRequest>('POST', `/api/portal/${token}/requests`, {
+      patient_supplement_ids,
+      note,
+    }),
 
   dashboard: () => request<DashboardSummary>('GET', '/api/dashboard/summary'),
   inventory: () => request<InventoryView>('GET', '/api/inventory'),

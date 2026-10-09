@@ -12,7 +12,13 @@ import type { Queryable } from '../db/client.js';
 import { PLATFORM_FEE_BPS, exactFeeDecimal } from '../money/split.js';
 import { loadPayment } from './checkout.js';
 
-const createOrderBody = z.object({ patient_id: z.number().int().positive() });
+const createOrderBody = z.object({
+  patient_id: z.number().int().positive(),
+  /** Pre-fill lines from the patient's supplement list (chart tab → Create Order). */
+  patient_supplement_ids: z.array(z.number().int().positive()).max(100).optional(),
+  /** Start this order to fulfil a patient's request; its list items are the default lines. */
+  request_id: z.number().int().positive().optional(),
+});
 
 const itemsBody = z.object({
   items: z
@@ -22,6 +28,7 @@ const itemsBody = z.object({
         quantity: z.number().int().positive().max(1_000),
         unit_price_cents: z.number().int().min(0).max(100_000_000),
         sig: z.string().trim().max(500).nullable().optional(),
+        patient_supplement_id: z.number().int().positive().nullable().optional(),
       }),
     )
     .max(100),
@@ -63,10 +70,62 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
     const [patient] = await sql<{ id: number }[]>`
       SELECT id FROM patients WHERE id = ${body.patient_id} AND provider_id = ${provider.id}`;
     if (!patient) throw notFound('Patient');
-    const [created] = await sql<{ id: number }[]>`
-      INSERT INTO orders (provider_id, patient_id) VALUES (${provider.id}, ${patient.id})
-      RETURNING id`;
-    if (!created) throw new HttpError(500, 'internal_error', 'order insert returned no row');
+
+    // Lines come from the patient's supplement list: explicitly chosen rows, or the rows of the
+    // request being fulfilled. Prices start at the catalog default; the provider edits on the
+    // order page before sending. Ad-hoc lines (PUT /items) remain possible.
+    let listIds = body.patient_supplement_ids ?? [];
+    let request: { id: number } | null = null;
+    if (body.request_id !== undefined) {
+      const [r] = await sql<{ id: number; item_ids: number[] }[]>`
+        SELECT r.id, COALESCE(array_agg(ri.patient_supplement_id) FILTER (WHERE ri.request_id IS NOT NULL), '{}') AS item_ids
+        FROM order_requests r LEFT JOIN order_request_items ri ON ri.request_id = r.id
+        WHERE r.id = ${body.request_id} AND r.provider_id = ${provider.id}
+          AND r.patient_id = ${patient.id} AND r.status = 'requested' AND r.order_id IS NULL
+        GROUP BY r.id`;
+      if (!r) throw notFound('Request');
+      request = { id: r.id };
+      if (listIds.length === 0) listIds = r.item_ids;
+    }
+    const lines =
+      listIds.length === 0
+        ? []
+        : await sql<{ id: number; supplement_id: number; sig: string | null; price: number }[]>`
+            SELECT ps.id, ps.supplement_id, ps.sig, s.default_price_cents AS price
+            FROM patient_supplements ps JOIN supplements s ON s.id = ps.supplement_id
+            WHERE ps.id IN ${sql(listIds)} AND ps.patient_id = ${patient.id} AND ps.status = 'active'
+            ORDER BY ps.id`;
+    if (lines.length !== new Set(listIds).size) {
+      throw new HttpError(
+        400,
+        'validation_error',
+        'patient_supplement_ids: not all on this patient’s active list',
+      );
+    }
+
+    const created = await sql.begin(async (tx) => {
+      const [o] = await tx<{ id: number }[]>`
+        INSERT INTO orders (provider_id, patient_id) VALUES (${provider.id}, ${patient.id})
+        RETURNING id`;
+      if (!o) throw new HttpError(500, 'internal_error', 'order insert returned no row');
+      if (lines.length > 0) {
+        await tx`INSERT INTO order_items ${tx(
+          lines.map((l) => ({
+            order_id: o.id,
+            supplement_id: l.supplement_id,
+            quantity: 1,
+            unit_price_cents: l.price,
+            unit_cogs_cents: 0, // overwritten from the catalog by order_items_guard
+            sig: l.sig,
+            patient_supplement_id: l.id,
+          })),
+        )}`;
+      }
+      if (request) {
+        await tx`UPDATE order_requests SET order_id = ${o.id} WHERE id = ${request.id}`;
+      }
+      return o;
+    });
     return reply.status(201).send(await view(created.id, provider.id, publicOrigin(req)));
   });
 
@@ -98,6 +157,7 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
             quantity: i.quantity,
             unit_price_cents: i.unit_price_cents,
             sig: i.sig ? i.sig : null,
+            patient_supplement_id: i.patient_supplement_id ?? null,
             unit_cogs_cents: 0,
           })),
         )}`;
@@ -127,6 +187,10 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
     const sent = await sql`
       UPDATE orders SET status = 'awaiting_payment' WHERE id = ${id} AND status = 'draft'`;
     if (sent.count === 0) throw orderLocked('Order has already been sent');
+    // A request this order was started from is now fulfilled.
+    await sql`
+      UPDATE order_requests SET status = 'fulfilled', resolved_at = now()
+      WHERE order_id = ${id} AND status = 'requested'`;
 
     const result = await view(id, provider.id, publicOrigin(req));
 

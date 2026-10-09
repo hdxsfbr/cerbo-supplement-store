@@ -1120,38 +1120,6 @@
   font-size: 12px;
   margin-left: auto;
 }
-.xc-split {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 6px;
-}
-.xc-split div {
-  background: #fff;
-  border: 1px solid #ddd;
-  padding: 6px 8px;
-  font-size: 13px;
-}
-.xc-split b {
-  display: block;
-  font-size: 15px;
-}
-.xc-split .neg {
-  color: var(--xc-red2);
-}
-.xc-ack {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin: 10px 4px 16px;
-  font-size: 14px;
-}
-.xc-ack input {
-  accent-color: #f7509e;
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-}
 .xc-btns {
   display: flex;
   justify-content: center;
@@ -1166,10 +1134,6 @@
   padding: 7px 12px;
   font-size: 15px;
   cursor: pointer;
-}
-.xc-btn--gray {
-  background: #999;
-  border-color: #777;
 }
 
 /* wired Supplements tab / modals */
@@ -1219,23 +1183,66 @@
   color: #666;
   font-size: 13px;
 }
-.xc-bad {
-  border-color: #a40000 !important;
-  background: #fff4f4;
-}
-.xc-split--invalid {
-  display: block;
-  color: #666;
-  font-size: 12px;
-}
 .xc-btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
-.xc-supp__rm--spacer {
-  visibility: hidden;
-}
 .xc-panel__body--scroll {
   max-height: 290px;
   overflow-y: auto;
+}
+
+/* supplement list: requests, provenance, discontinued, tab badge */
+.xc-tab__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #ff9900;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.xc-req {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: #fff6e0;
+  border: 1px solid #f0c674;
+  padding: 6px 8px;
+  margin: 4px 0 6px;
+  font-size: 13px;
+}
+.xc-req__act {
+  white-space: nowrap;
+}
+.xc-req__act a {
+  color: #013365;
+  font-weight: 700;
+  margin-left: 10px;
+  text-decoration: none;
+}
+.xc-supp__self {
+  font-size: 10px;
+  font-weight: 700;
+  color: #79127d;
+  border: 1px solid #79127d;
+  padding: 0 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.xc-supp__past {
+  font-size: 12px;
+  color: #777;
+  padding: 6px 0;
+}
+.xc-supp__past span {
+  margin-right: 10px;
+}
+.xc-supp__past a {
+  color: #013365;
 }

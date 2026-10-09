@@ -57,4 +57,17 @@ authenticate by capability token in the URL — no header.
 | Route | Purpose | Notes |
 |---|---|---|
 | `POST /api/portal/session` | Demo portal sign-in | body `{ patient_id }` → `{ token, patient, provider }`; identity-seam stand-in for the portal login |
-| `GET /api/portal/:token` | Patient's portal view | messages, invoices (with items incl. `sig`, and the card used), `balance_due_cents`, `payment_method` |
+| `GET /api/portal/:token` | Patient's portal view | messages, invoices (with items incl. `sig`, and the card used), `balance_due_cents`, `payment_method`, `supplements` (the list), `requests`, names-only `catalog` |
+
+## Supplement list & requests (DECISIONS #17)
+
+| Route | Purpose | Notes |
+|---|---|---|
+| `GET /api/patients/:id/supplements` | The patient's list + their requests | provider-scoped; rows carry `latest_order` |
+| `POST /api/patients/:id/supplements` | Add a catalog item to the list | body `{ supplement_id, sig? }`; 409 `already_listed` |
+| `PATCH /api/patient-supplements/:id` | Edit sig / discontinue / reactivate | body `{ sig?, status? }` |
+| `POST /api/orders` | (extended) start an order from the list | body may add `patient_supplement_ids` and/or `request_id`; lines pre-filled at catalog price with the list sig |
+| `GET /api/requests` | Provider's requests, open first | |
+| `POST /api/requests/:id/decline` | Close a request without an order | body `{ note? }`; patient gets a portal message |
+| `POST /api/portal/:token/supplements` | Patient self-reports a supplement | body `{ supplement_id, sig? }` |
+| `POST /api/portal/:token/requests` | Patient asks for an order of list rows | body `{ patient_supplement_ids, note? }`; 409 if one is already in an open request |

@@ -13,6 +13,7 @@ import {
   marginPercentBps,
   priceForMarginBps,
 } from '../money';
+import { useLoginStore } from '../stores/login';
 import { useOrderDraftStore, type DraftLine } from '../stores/orderDraft';
 import { useSessionStore } from '../stores/session';
 import type { OrderListRow, Patient, Supplement } from '../types';
@@ -21,6 +22,11 @@ const props = defineProps<{ orderId?: number }>();
 const router = useRouter();
 const session = useSessionStore();
 const draft = useOrderDraftStore();
+// Signed in through the demo chart? Offer the way back to that patient's chart.
+const login = useLoginStore();
+const chartPath = computed(() =>
+  login.isDoctor && draft.order ? `/experimental-chart?patient=${draft.order.patient.id}` : null,
+);
 
 const patients = ref<Patient[]>([]);
 const supplements = ref<Supplement[]>([]);
@@ -190,6 +196,9 @@ function fmtDate(iso: string | null): string {
               {{ statusLabel[draft.order.status] }}
             </span>
             <span class="cerbo-muted">Order #{{ draft.order.id }}</span>
+            <RouterLink v-if="chartPath" :to="chartPath" class="cerbo-link"
+              >Back to chart</RouterLink
+            >
             <RouterLink to="/orders/new" class="cerbo-link">New order</RouterLink>
           </div>
         </CerboPanel>
@@ -250,6 +259,7 @@ function fmtDate(iso: string | null): string {
                 <td>
                   <div>{{ line.name }}</div>
                   <div class="cerbo-muted">{{ line.sku }}</div>
+                  <div v-if="line.sig" class="cerbo-muted">{{ line.sig }}</div>
                   <span v-if="line.unit_price_cents < line.unit_cogs_cents" class="cerbo-chip--warn"
                     >below COGS</span
                   >

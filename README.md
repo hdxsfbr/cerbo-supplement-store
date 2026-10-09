@@ -226,6 +226,11 @@ the live split, add / add another / add & send). It reuses the same order-draft 
 the only schema addition is an optional per-line patient `sig` (migration 007). Reference
 screenshots and design notes live in `docs/cerbo-ui-reference/`.
 
+The chart's Supplements tab is the patient's supplement _list_ (what they take, with
+directions). Orders are started from it: select rows, Create supplement order, price and send
+on the order page. Patients see the same list in the portal, can add what they take, and can
+request an order; the provider prices it or declines it (DECISIONS #17).
+
 The root `/` is a demo sign-in with two providers and two patients (hard-coded in
 `web/src/stores/login.ts`). A provider lands on the chart and picks the patient from the
 top-right dropdown; a patient lands on `/experimental-portal`, a static replica of Cerbo's

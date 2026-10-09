@@ -19,6 +19,7 @@ import { ordersRoutes } from './routes/orders.js';
 import { checkoutRoutes } from './routes/checkout.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { portalRoutes } from './routes/portal.js';
+import { supplementListRoutes } from './routes/supplementList.js';
 
 export interface AppDeps {
   sql: Db;
@@ -122,6 +123,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(checkoutRoutes);
   await app.register(dashboardRoutes);
   await app.register(portalRoutes);
+  await app.register(supplementListRoutes);
 
   // ── Static SPA (production single image) + 404 envelope ──────────────────────────────────
   const staticDir = deps.staticDir ?? null;

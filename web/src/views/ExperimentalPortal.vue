@@ -1,16 +1,17 @@
 <script setup lang="ts">
 // EXPERIMENTAL — a replica of Cerbo's patient portal (docs/cerbo-ui-reference/portal-*.png) with
 // the store's patient side wired in: Secure Messages, My Bills and Payments (balance, statement,
-// invoices, pay) and My Supplements come from GET /api/portal/:token for the signed-in patient.
-// Account details and the self-reported "Add To Your Supplement List" modal stay static.
+// invoices, pay) and My Supplements (the patient's list: provider-ordered and self-reported,
+// with "request an order", DECISIONS #17) all come from GET /api/portal/:token. Account
+// details stay static.
 // Route: /experimental-portal.
 import '../styles/portal-xp.css';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { api } from '../api';
+import { api, ApiError } from '../api';
 import { formatCents } from '../money';
 import { useLoginStore } from '../stores/login';
-import type { PortalView } from '../types';
+import type { PatientSupplement, PortalView } from '../types';
 
 const login = useLoginStore();
 const router = useRouter();
@@ -22,6 +23,7 @@ function signOut(): void {
 
 // ── Data ─────────────────────────────────────────────────────────────────────────────────
 const data = ref<PortalView | null>(null);
+const token = ref<string | null>(null);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
 
@@ -31,8 +33,8 @@ async function load(): Promise<void> {
   loading.value = true;
   loadError.value = null;
   try {
-    const session = await api.portalSignIn(a.id);
-    data.value = await api.portal(session.token);
+    if (!token.value) token.value = (await api.portalSignIn(a.id)).token;
+    data.value = await api.portal(token.value);
   } catch (err) {
     loadError.value = (err as Error).message;
   } finally {
@@ -73,30 +75,86 @@ function fullDate(iso: string): string {
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-// ── My Supplements: every line the practice has ordered for this patient ─────────────────
-interface SuppRow {
-  key: string;
-  name: string;
-  sig: string;
-  date: string;
-  paid: boolean;
-  payPath: string;
-}
-const suppRows = computed<SuppRow[]>(() =>
-  (data.value?.invoices ?? []).flatMap((inv) =>
-    inv.items.map((i, n) => ({
-      key: `${inv.id}-${n}`,
-      name: i.name,
-      sig: i.sig ?? 'As directed',
-      date:
-        inv.status === 'paid'
-          ? `Paid ${shortDate(inv.paid_at)}`
-          : `Ordered ${shortDate(inv.sent_at)}`,
-      paid: inv.status === 'paid',
-      payPath: pathOf(inv.checkout_url),
-    })),
-  ),
+// ── My Supplements: the patient's list, with "request an order" ─────────────────────────
+const activeList = computed(
+  () => data.value?.supplements.filter((r) => r.status === 'active') ?? [],
 );
+const pastList = computed(() => data.value?.supplements.filter((r) => r.status !== 'active') ?? []);
+const myRequests = computed(() => data.value?.requests ?? []);
+const openRequestIds = computed(
+  () =>
+    new Set(
+      myRequests.value
+        .filter((r) => r.status === 'requested')
+        .flatMap((r) => r.items.map((i) => i.patient_supplement_id)),
+    ),
+);
+const selected = ref<number[]>([]);
+const requestNote = ref('');
+const busy = ref(false);
+const actionError = ref<string | null>(null);
+
+function toggle(id: number): void {
+  selected.value = selected.value.includes(id)
+    ? selected.value.filter((x) => x !== id)
+    : [...selected.value, id];
+}
+function orderState(row: PatientSupplement): { label: string; path: string | null; paid: boolean } {
+  const o = row.latest_order;
+  if (openRequestIds.value.has(row.id)) return { label: 'Requested', path: null, paid: false };
+  if (!o || o.status === 'draft') return { label: 'On your list', path: null, paid: false };
+  if (o.status === 'paid') return { label: `Paid ${shortDate(o.paid_at)}`, path: null, paid: true };
+  return {
+    label: `Ordered ${shortDate(o.sent_at)} · pay now`,
+    path: o.checkout_url ? pathOf(o.checkout_url) : null,
+    paid: false,
+  };
+}
+async function act(fn: () => Promise<void>): Promise<void> {
+  if (busy.value || !token.value) return;
+  busy.value = true;
+  actionError.value = null;
+  try {
+    await fn();
+    await load();
+  } catch (err) {
+    actionError.value = err instanceof ApiError ? err.message : (err as Error).message;
+  } finally {
+    busy.value = false;
+  }
+}
+function requestOrder(): void {
+  const ids = selected.value;
+  if (ids.length === 0) return;
+  void act(async () => {
+    await api.portalRequest(token.value!, ids, requestNote.value.trim() || null);
+    selected.value = [];
+    requestNote.value = '';
+  });
+}
+
+// "Add To Your Supplement List": self-reported, from the names-only catalog
+const query = ref('');
+const picked = ref(0);
+const matches = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  const all = data.value?.catalog ?? [];
+  return (q ? all.filter((c) => c.name.toLowerCase().includes(q)) : all).slice(0, 9);
+});
+const selfSig = ref('');
+function openAdd(): void {
+  query.value = '';
+  picked.value = 0;
+  selfSig.value = '';
+  actionError.value = null;
+  modal.value = 'add';
+}
+function addSelf(c: { id: number }): void {
+  void act(async () => {
+    await api.portalAddSupplement(token.value!, c.id, selfSig.value.trim() || null);
+    modal.value = null;
+  });
+}
 
 // ── Statement: charges at send time, credits at payment time, running balance ────────────
 interface StmtRow {
@@ -172,19 +230,6 @@ function badgeFor(n: (typeof nav)[number]): string | null {
 function go(n: (typeof nav)[number]): void {
   if (n.view) view.value = n.view;
 }
-
-// Patient-reported supplements (static replica of Cerbo's lookup; not part of the store).
-const lookup = [
-  'Curcumin',
-  'Vitamin E',
-  'Tocopherols',
-  'ProOmega 2000',
-  'Nordic Naturals ProEPA',
-  'Arctic Omega Lemon Liquid',
-  'Nordic Naturals Omega 3 Gummies',
-  'Nordic Naturals ProOmega Junior',
-  'Zero Sugar Melatonin Gummies 60 Gummies',
-];
 </script>
 
 <template>
@@ -284,7 +329,7 @@ const lookup = [
             </div>
           </template>
 
-          <!-- ── My Supplements (store orders) ──────────────────────────── -->
+          <!-- ── My Supplements (the patient's list) ─────────────────────── -->
           <template v-else-if="view === 'supps'">
             <h1>My Supplements</h1>
             <div class="xp-card">
@@ -295,49 +340,110 @@ const lookup = [
               <div class="xp-card__title">My Supplements</div>
               <div v-if="loading" class="xp-muted">Loading…</div>
               <div v-else-if="loadError" class="xp-muted xp-err">{{ loadError }}</div>
-              <div v-else-if="suppRows.length === 0" class="xp-muted">
-                {{ providerName }} has not ordered any supplements for you yet.
+              <div v-else-if="activeList.length === 0" class="xp-muted">
+                Nothing on your list yet. Add what you take, or ask {{ providerName }} for a
+                recommendation.
               </div>
               <table v-else class="xp-table">
                 <thead>
                   <tr>
+                    <th style="width: 28px"></th>
                     <th>Supplement</th>
                     <th>Directions</th>
-                    <th>Relevant Dates</th>
+                    <th>Status</th>
                     <th style="text-align: center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="s in suppRows" :key="s.key">
+                  <tr v-for="r in activeList" :key="r.id">
                     <td>
-                      <RouterLink :to="s.payPath">{{ s.name }}</RouterLink>
+                      <input
+                        type="checkbox"
+                        :checked="selected.includes(r.id)"
+                        :disabled="openRequestIds.has(r.id)"
+                        :title="`Select ${r.name} to request an order`"
+                        @change="toggle(r.id)"
+                      />
                     </td>
-                    <td>{{ s.sig }}</td>
-                    <td>{{ s.date }}</td>
+                    <td>
+                      {{ r.name }}
+                      <i v-if="r.added_by === 'patient'" class="xp-muted-inline">(added by you)</i>
+                    </td>
+                    <td>{{ r.sig ?? '—' }}</td>
+                    <td>
+                      <RouterLink v-if="orderState(r).path" :to="orderState(r).path!">{{
+                        orderState(r).label
+                      }}</RouterLink>
+                      <span v-else>{{ orderState(r).label }}</span>
+                    </td>
                     <td style="text-align: center">
-                      <RouterLink v-if="!s.paid" :to="s.payPath" class="xp-btn xp-btn--sm"
+                      <RouterLink
+                        v-if="orderState(r).path"
+                        :to="orderState(r).path!"
+                        class="xp-btn xp-btn--sm"
                         >Pay Now</RouterLink
                       >
-                      <template v-else>
-                        <span class="xp-act xp-act--x">✕</span
-                        ><span class="xp-act xp-act--r">⟳</span>
-                      </template>
+                      <template v-else
+                        ><span class="xp-act xp-act--x">✕</span
+                        ><span class="xp-act xp-act--r">⟳</span></template
+                      >
                     </td>
                   </tr>
                 </tbody>
               </table>
+              <div v-if="activeList.length" class="xp-request">
+                <input
+                  v-model="requestNote"
+                  type="text"
+                  placeholder="Note to your provider (optional)"
+                  :disabled="selected.length === 0"
+                />
+                <button
+                  class="xp-btn xp-btn--light"
+                  :disabled="selected.length === 0 || busy"
+                  @click="requestOrder"
+                >
+                  Request an Order ({{ selected.length }})
+                </button>
+              </div>
+              <div v-if="actionError && !modal" class="xp-err xp-center">{{ actionError }}</div>
               <div class="xp-check">
                 <input type="checkbox" /> I am not currently taking any supplements
               </div>
+
+              <div v-if="myRequests.length" class="xp-card__title">My Requests</div>
+              <div v-for="q in myRequests" :key="q.id" class="xp-reqrow">
+                <b
+                  :class="{
+                    'xp-reqrow--open': q.status === 'requested',
+                    'xp-reqrow--done': q.status === 'fulfilled',
+                    'xp-reqrow--no': q.status === 'declined',
+                  }"
+                  >{{
+                    q.status === 'requested'
+                      ? 'Waiting for ' + providerName
+                      : q.status === 'fulfilled'
+                        ? 'Order sent'
+                        : 'Not ordered'
+                  }}</b
+                >
+                · {{ longDate(q.created_at) }} · {{ q.items.map((i) => i.name).join(', ') }}
+                <i v-if="q.note">— “{{ q.note }}”</i>
+                <i v-if="q.decline_note">— {{ providerName }}: “{{ q.decline_note }}”</i>
+              </div>
+
               <div class="xp-card__title">Past Supplements</div>
-              <div class="xp-muted">
+              <div v-if="pastList.length === 0" class="xp-muted">
                 We have no discontinued or expired supplements on record for you.
+              </div>
+              <div v-else class="xp-muted">
+                <span v-for="r in pastList" :key="r.id" style="margin-right: 14px">{{
+                  r.name
+                }}</span>
               </div>
             </div>
             <div class="xp-center">
-              <button class="xp-btn xp-btn--light" @click="modal = 'add'">
-                Add a New Supplement ➕
-              </button>
+              <button class="xp-btn xp-btn--light" @click="openAdd">Add a New Supplement ➕</button>
             </div>
           </template>
 
@@ -462,7 +568,7 @@ const lookup = [
     <!-- ── Modals ──────────────────────────────────────────────────────── -->
     <template v-if="modal === 'add'">
       <div class="xp-overlay" @click="modal = null"></div>
-      <div class="xp-modal xp-modal--md" style="top: 410px">
+      <div class="xp-modal xp-modal--md" style="top: 300px">
         <div class="xp-modal__hdr">
           <div class="xp-modal__ic" style="background: #2ca3cf">+</div>
           Add To Your Supplement List
@@ -471,17 +577,33 @@ const lookup = [
         <div class="xp-modal__body" style="position: relative">
           <p>
             Use the search bar below to find your supplement. If there are several similar potential
-            matches, choose the one that seems like the best fit. If you cannot find a match, click
-            where indicated to add a new item.
+            matches, choose the one that seems like the best fit. Your provider will see what you
+            add here.
           </p>
           <div class="xp-lookup">
             <label>Look up supplement</label>
-            <input value="natural" readonly />
+            <input
+              v-model="query"
+              placeholder="- type to search -"
+              autofocus
+              @keydown.enter.prevent="matches[picked] && addSelf(matches[picked]!)"
+              @keydown.down.prevent="picked = Math.min(picked + 1, matches.length - 1)"
+              @keydown.up.prevent="picked = Math.max(picked - 1, 0)"
+            />
+            <label>How do you take it? (optional)</label>
+            <input v-model="selfSig" placeholder="e.g. 1 capsule with breakfast" />
           </div>
-          <div class="xp-lookup__dd">
-            <div v-for="l in lookup" :key="l" :class="{ on: l.includes('Omega 3') }">{{ l }}</div>
-            <div class="new">
-              + Add New<small>None of the above? Click here to add yours.</small>
+          <div v-if="actionError" class="xp-err" style="margin-top: 10px">{{ actionError }}</div>
+          <div class="xp-lookup__dd xp-lookup__dd--static">
+            <div v-if="matches.length === 0">No matches in {{ providerName }}'s catalog.</div>
+            <div
+              v-for="(c, i) in matches"
+              :key="c.id"
+              :class="{ on: i === picked }"
+              @mouseenter="picked = i"
+              @click="addSelf(c)"
+            >
+              {{ c.name }}
             </div>
           </div>
         </div>
