@@ -168,3 +168,21 @@ just to fix links.
 demo still set it explicitly because the SPA and API are on different ports there.
 **Trade-off:** Trusting forwarded headers is fine behind Railway's edge; behind an untrusted proxy
 you would pin the origin instead. The env var remains the override.
+
+## 14. Notify patients the way Cerbo does: portal message + email nudge, and a demo portal
+
+**Date:** 2026-10-08
+**Context:** The first cut had the provider copy a payment link, which was honest about the
+notifier being a stub but nothing like Cerbo's product. Cerbo's portal already does secure
+messaging and "view and pay bills online"; its API exposes Secure Messages, Patient Emails and
+Patient Invoices. Andre asked for the flow to look like Cerbo's and for a payment form that
+doesn't look fake.
+**Decision:** The notifier seam now *records* the two messages Cerbo would send (portal message
+with the pay link, email nudge pointing at the portal) in a `notifications` table, and a small
+patient-portal page shows messages, balance due and invoices. Checkout gets a card form with a
+browser-side fake tokenizer: only `{token, brand, last4}` reaches the server; Stripe-style test
+numbers drive success / decline / processing error through the real 402/502 paths. The seams'
+interfaces are unchanged; only their fake implementations got more faithful.
+**Trade-off:** More surface to maintain for a demo, and a "fake tokenizer" is a thing a reader
+has to understand is fake. In exchange the demo tells the true story: the provider never
+handles a link, the patient pays from a message, and declines are a real path.

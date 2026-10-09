@@ -54,9 +54,46 @@ export interface OrderView {
   total_cents: number;
   split: SplitView;
   checkout_url: string | null;
+  portal_url: string;
   sent_at: string | null;
   paid_at: string | null;
   created_at: string;
+  /** What was sent to the patient on send (portal message + email nudge). */
+  notifications?: NotificationView[];
+  notified?: boolean;
+}
+
+export interface NotificationView {
+  id: number;
+  channel: 'portal_message' | 'email';
+  recipient: string | null;
+  subject: string;
+  body: string;
+  link: string | null;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface PaymentMethodInput {
+  token: string;
+  brand: string;
+  last4: string;
+}
+
+export interface PortalView {
+  patient: { id: number; name: string; email: string | null };
+  provider: { name: string };
+  messages: (NotificationView & { order_id: number | null; order_status: OrderStatus | null })[];
+  invoices: {
+    id: number;
+    status: OrderStatus;
+    total_cents: number;
+    sent_at: string;
+    paid_at: string | null;
+    item_count: number;
+    checkout_url: string;
+  }[];
+  balance_due_cents: number;
 }
 
 export interface OrderListRow {
@@ -83,6 +120,7 @@ export interface CheckoutView {
   paid: boolean;
   provider: { name: string };
   patient: { name: string };
+  portal_url: string;
   items: {
     name: string;
     sku: string | null;
@@ -98,6 +136,8 @@ export interface CheckoutView {
     idempotency_key: string;
     amount_cents: number;
     gateway_ref: string | null;
+    card_brand: string | null;
+    card_last4: string | null;
     created_at: string;
   };
 }

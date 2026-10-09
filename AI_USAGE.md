@@ -279,3 +279,18 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   render only when they fail. The audit view keeps the fee computation because that is its job.
   Recorded as a standing rule in `~/.claude/CLAUDE.md`: no dev commentary in product UI, and
   clean up any demo scaffolding before reporting done.
+
+### 2026-10-08 — Portal notifications + card form (HDX-96, HDX-97)
+
+- Andre asked how Cerbo actually reaches patients. Checked cer.bo and docs.cer.bo rather than
+  guessing: portal with secure messaging and "view and pay bills", API with Secure Messages,
+  Patient Emails, Patient Invoices. Built the demo to that shape: the notifier seam now writes
+  the two messages a patient would get, a portal page shows them with invoices, and the
+  provider's "copy link" became "View as patient".
+- Card form with a browser-side fake tokenizer. The design constraint I set myself: the PAN
+  must never reach the server even in a demo, so the token carries brand, last4 and the
+  Stripe-style test outcome. That let the existing 402/502 gateway paths get real UI.
+- Headless run found one layout bug (ZIP field overflowing the card) and the e2e script needed
+  to stop treating the expected 402 as a page error. Added a favicon to kill a perennial 404.
+- Both features shipped as fake-implementation upgrades behind unchanged seam interfaces
+  (DECISIONS #14).

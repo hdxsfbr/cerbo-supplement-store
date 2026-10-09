@@ -12,9 +12,13 @@ integer cents, in an append-only ledger whose invariants are enforced by the dat
   [Decision log](DECISIONS.md) · [AI usage log](AI_USAGE.md) ·
   [Spec, plan, data model, API contracts, tasks](specs/001-supplement-store/)
 
-| Provider: order builder (Cerbo chart idiom) | Patient: checkout (portal style) |
+| Provider: order builder (Cerbo chart idiom) | Patient: portal inbox (portal style) |
 |---|---|
-| ![order builder](docs/screenshots/order-builder-draft.png) | ![checkout](docs/screenshots/checkout.png) |
+| ![order builder](docs/screenshots/order-builder-draft.png) | ![patient portal](docs/screenshots/patient-portal.png) |
+
+| Patient: checkout with card form | Patient: receipt |
+|---|---|
+| ![checkout](docs/screenshots/checkout.png) | ![receipt](docs/screenshots/checkout-receipt.png) |
 
 | Provider: cent-by-cent audit | Provider: dashboard |
 |---|---|
@@ -41,9 +45,11 @@ that machine's address — payment links are built from `PUBLIC_WEB_ORIGIN`.
    provider top-right). Pick **Zeus King**, add two supplements. Prices pre-fill from the
    catalog default; override one, or type a margin % and watch the price derive. The amber
    *Billing* panel shows the live split.
-2. **Send to patient** — the order locks and a payment link appears (that link *is* the
-   "email"; the notifier is a stub).
-3. **Open the link** — the patient surface. Press **Pay**. Double-click it. Refresh. One payment.
+2. **Send to patient** — the order locks and the builder shows what went out: a secure portal
+   message and an email nudge, the way Cerbo notifies patients. Click **View as patient**.
+3. **Patient portal** — the message, the balance due, the invoice list. **Review and pay** opens
+   checkout with a card form. Try the *Declined* test card first, then *4242…*. Double-click Pay.
+   Refresh. One payment, receipt shows "Visa ending 4242".
 4. **Audit** (`/orders/:id/audit`) — the ledger: three entries, their memos, Σ = amount paid,
    and the fee computation (`75 bps of 6600¢ = 49.5¢ → 50¢ (half-up)`).
 5. **Reporting** (`/dashboard`) — GMV, margin, COGS, fees as sums over the ledger; inventory
@@ -155,9 +161,9 @@ web/src/views/                OrderBuilder · Checkout · OrderAudit · Dashboar
 
 | Boundary | What is faked here | Where the seam is | What production would do |
 |---|---|---|---|
-| **Identity / EHR** | Acting provider comes from an `x-acting-provider` header (switcher in the nav); patient access is a random capability token on the order (`/pay/<token>`). | `server/src/seams/identity.ts` → `IdentityProvider` | Read the EHR session for the provider; back the patient link with the portal session or a signed, expiring link. Route code calls the same two methods; session plumbing (cookies, middleware) is new code around them. |
-| **Payment** | `FakePaymentGateway.charge()` always succeeds and returns a deterministic reference per idempotency key. Declines/outages are modelled (402/502, nothing written). | `server/src/seams/payment.ts` → `PaymentGateway` | PaymentIntent-style flow with a pending row, the network call outside the DB lock, and webhook reconciliation — see "The payment boundary, honestly" above. The seam interface stays; the route orchestration changes. The DB still refuses a second payment per order and re-asserts the split at commit. |
-| **Email / notification** | `NoopNotifier` logs; the UI shows the payment link instead. Notification is best-effort *after* the send commits: a notifier failure returns `notified: false` with the link, never a failed send. | `server/src/seams/notifier.ts` → `Notifier` | An outbox row written inside the send transaction, delivered asynchronously with retries (email, or Cerbo's patient-portal queue where supplement refills already surface). |
+| **Identity / EHR** | Acting provider comes from an `x-acting-provider` header (switcher in the nav); patient access is a capability token per order (`/pay/<token>`) and per patient (`/portal/<token>`). | `server/src/seams/identity.ts` → `IdentityProvider` | Read the EHR session for the provider; back the patient links with the portal session. Route code calls the same three methods; session plumbing (cookies, middleware) is new code around them. |
+| **Payment** | A card form in the browser runs a *fake tokenizer* (`web/src/card.ts`): the number never leaves the page; the server gets `fake_tok_<brand>_<last4>_<outcome>`. `FakePaymentGateway` honours Stripe-style test cards (4242… succeeds, 4000 0000 0000 0002 declines → 402, …0119 → 502, nothing written). Brand + last4 are stored for the receipt. | `server/src/seams/payment.ts` → `PaymentGateway` | Stripe Elements (or similar) tokenizes in an iframe; PaymentIntent-style flow with a pending row, the network call outside the DB lock, and webhook reconciliation — see "The payment boundary, honestly" above. The seam interface stays; the route orchestration changes. The DB still refuses a second payment per order and re-asserts the split at commit. |
+| **Messaging / patient portal** | `PortalNotifier` writes what Cerbo would send — a secure portal message and an email nudge — to a `notifications` table; the demo patient portal (`/portal/<token>`) reads them back with the patient's invoices. Nothing is actually sent. Notification is best-effort *after* the send commits: a failure returns `notified: false`, never a failed send. | `server/src/seams/notifier.ts` → `Notifier` | Cerbo's **Secure Messages** (portal queue) + **Patient Emails** APIs, from an outbox row written inside the send transaction and delivered asynchronously with retries; the portal page would be Cerbo's own portal, where patients already view and pay bills. |
 | **Shipping / fulfilment** | Not modelled. Inventory is a count that decrements at payment and may go negative (flagged). | — | Reservation at send, release on expiry, fulfilment events. |
 | **Providers / patients / catalog** | Seeded by migration `003_seed.sql` (Greek-god demo patients, 8 supplements with COGS and default prices). | the migration | Synced from the EHR and a catalog service. |
 

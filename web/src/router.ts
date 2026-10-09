@@ -44,6 +44,13 @@ const routes: RouteRecordRaw[] = [
     props: true,
     meta: { surface: 'patient', title: 'Pay for your supplements' },
   },
+  {
+    path: '/portal/:token',
+    name: 'portal',
+    component: () => import('./views/PatientPortal.vue'),
+    props: true,
+    meta: { surface: 'patient', title: 'Patient Portal' },
+  },
   { path: '/:pathMatch(.*)*', redirect: '/orders/new' },
 ];
 

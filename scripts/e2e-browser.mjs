@@ -19,7 +19,9 @@ await page.setViewport({ width: 1280, height: 900 });
 const errs = [];
 page.on('pageerror', (e) => errs.push(`[pageerror] ${e.message}`));
 page.on('console', (m) => {
-  if (m.type() === 'error' && !m.text().includes('favicon')) errs.push(`[console] ${m.text()}`);
+  // The browser logs every non-2xx fetch as an error; the 402 from the declined test card is expected.
+  if (m.type() === 'error' && !/favicon|status of 402/.test(m.text()))
+    errs.push(`[console] ${m.text()}`);
 });
 
 // Provider: start order for Hera (patient 2), add Omega-3 ×2 and Vitamin D3 at 2.00 (200¢ → half-cent fee boundary)
@@ -48,25 +50,39 @@ await page.keyboard.type('2.00');
 await page.keyboard.press('Tab');
 await new Promise((r) => setTimeout(r, 900));
 await page.click('button::-p-text(Send to patient for payment)');
-await page.waitForFunction(() => document.body.innerText.includes('Payment link'));
-const url = await page.$eval('.ob__link-url', (e) => e.textContent.trim());
+await page.waitForFunction(() => document.body.innerText.includes('Sent to patient'));
 const orderId = await page.evaluate(() => location.pathname.split('/').pop());
-console.log('ORDER', orderId, 'URL', url);
+console.log('ORDER', orderId);
 
-// Patient: checkout
-console.log('step: goto checkout');
-await page.goto(url, { waitUntil: 'networkidle0' });
-console.log('step: checkout loaded');
+// Patient: open the portal from the "View as patient" link, then pay from the message
+await page.waitForFunction(() => document.body.innerText.includes('Portal message'));
+const portalUrl = await page.$eval('a::-p-text(View as patient)', (a) => a.href);
+console.log('PORTAL', portalUrl.replace(/portal\/.*/, 'portal/…'));
+await page.goto(portalUrl, { waitUntil: 'networkidle0' });
+await page.waitForFunction(() => document.body.innerText.includes('Balance due'));
+await page.screenshot({ path: `${OUT}/portal.png`, fullPage: true });
+await page.click('a::-p-text(Review and pay)');
+await page.waitForSelector('#cc-number');
 await page.screenshot({ path: `${OUT}/checkout.png`, fullPage: true });
-const payBtn = await page.waitForSelector('button.portal-btn--primary');
-console.log('step: pay button');
-// double-click: two rapid clicks → second is a no-op (disabled) or a replay
+// a declined test card first → inline error, order still payable
+await page.click('button::-p-text(Declined)');
+await page.click('button[type=submit]');
+await page.waitForFunction(() => document.body.innerText.includes('declined'));
+console.log('DECLINE shown, still on form:', !!(await page.$('#cc-number')));
+// then the good card; double-click to exercise replay safety
+await page.click('button::-p-text(Succeeds)');
+const payBtn = await page.$('button[type=submit]');
 await payBtn.click();
 await payBtn.click().catch(() => {});
 await page.waitForFunction(() => document.body.innerText.includes('Paid'), { timeout: 15000 });
-console.log('step: paid');
 await new Promise((r) => setTimeout(r, 400));
 await page.screenshot({ path: `${OUT}/receipt.png`, fullPage: true });
+console.log(
+  'RECEIPT card line:',
+  (await page.evaluate(() => document.body.innerText))
+    .split('\n')
+    .find((l) => l.includes('ending')),
+);
 // refresh → still receipt
 await page.reload({ waitUntil: 'networkidle0' });
 console.log(

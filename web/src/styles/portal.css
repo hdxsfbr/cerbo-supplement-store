@@ -234,3 +234,185 @@
   font-size: 12px;
   color: var(--portal-muted);
 }
+
+/* ---------------------------------------------------------------- Portal inbox & invoices ---- */
+.portal-section {
+  margin-top: 24px;
+}
+.portal-section__title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--portal-muted);
+  margin: 0 0 8px;
+}
+.portal-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 14px;
+  border: 1px solid var(--portal-card-border);
+  border-radius: 8px;
+  background: var(--portal-info-bg);
+}
+.portal-balance__amount {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.portal-message {
+  border: 1px solid var(--portal-card-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.portal-message__subject {
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.portal-message__meta {
+  font-size: 12px;
+  color: var(--portal-muted);
+  margin: 0 0 8px;
+}
+.portal-message__body {
+  margin: 0 0 10px;
+}
+.portal-invoices {
+  width: 100%;
+  border-collapse: collapse;
+}
+.portal-invoices th,
+.portal-invoices td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--portal-divider);
+  text-align: left;
+  font-size: 14px;
+}
+.portal-invoices th {
+  font-size: 12px;
+  color: var(--portal-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.portal-invoices__num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+.portal-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--portal-info-bg);
+  color: var(--portal-info-fg);
+}
+.portal-badge--due {
+  background: #fff7ed;
+  color: #9a3412;
+}
+.portal-badge--paid {
+  background: var(--portal-paid-bg);
+  color: var(--portal-paid-fg);
+}
+.portal-link {
+  color: var(--portal-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.portal-link:hover {
+  text-decoration: underline;
+}
+.portal-back {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------- Card form ---- */
+.portal-form {
+  margin-top: 16px;
+  border: 1px solid var(--portal-card-border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.portal-form__title {
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+.portal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.portal-field label {
+  font-size: 13px;
+  color: var(--portal-muted);
+}
+.portal-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font-size: 16px;
+  padding: 10px 12px;
+  border: 1px solid #cfd4dc;
+  border-radius: 6px;
+  background: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.portal-field input:focus {
+  outline: 2px solid var(--portal-accent);
+  outline-offset: 1px;
+  border-color: var(--portal-accent);
+}
+.portal-field input[aria-invalid='true'] {
+  border-color: var(--portal-error-fg);
+  background: var(--portal-error-bg);
+}
+.portal-field__error {
+  font-size: 12px;
+  color: var(--portal-error-fg);
+}
+.portal-field__hint {
+  font-size: 12px;
+  color: var(--portal-muted);
+}
+.portal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.portal-row > .portal-field {
+  min-width: 0;
+}
+.portal-card-brand {
+  font-size: 12px;
+  color: var(--portal-muted);
+  text-align: right;
+}
+.portal-testcards {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--portal-muted);
+}
+.portal-testcards button {
+  background: none;
+  border: 0;
+  padding: 0 4px;
+  color: var(--portal-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.portal-secure {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--portal-muted);
+  margin-top: 8px;
+}

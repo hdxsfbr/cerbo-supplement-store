@@ -10,6 +10,8 @@ import type {
   OrderListRow,
   OrderView,
   Patient,
+  PaymentMethodInput,
+  PortalView,
   Supplement,
 } from './types';
 
@@ -86,8 +88,12 @@ export const api = {
   ledger: (id: number) => request<LedgerView>('GET', `/api/orders/${id}/ledger`),
 
   checkout: (token: string) => request<CheckoutView>('GET', `/api/checkout/${token}`),
-  pay: (token: string, idempotency_key: string) =>
-    request<CheckoutView>('POST', `/api/checkout/${token}/pay`, { idempotency_key }),
+  pay: (token: string, idempotency_key: string, payment_method?: PaymentMethodInput) =>
+    request<CheckoutView>('POST', `/api/checkout/${token}/pay`, {
+      idempotency_key,
+      ...(payment_method ? { payment_method } : {}),
+    }),
+  portal: (token: string) => request<PortalView>('GET', `/api/portal/${token}`),
 
   dashboard: () => request<DashboardSummary>('GET', '/api/dashboard/summary'),
   setInventory: (id: number, inventory_count: number) =>

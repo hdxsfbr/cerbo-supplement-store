@@ -411,15 +411,30 @@ function fmtDate(iso: string | null): string {
           </div>
 
           <div v-if="draft.order?.checkout_url" class="ob__link">
-            <div class="ob__link-title">Payment link</div>
-            <code class="ob__link-url">{{ draft.order.checkout_url }}</code>
+            <div class="ob__link-title">Sent to patient {{ fmtDate(draft.order.sent_at) }}</div>
+            <ul v-if="draft.order.notifications?.length" class="ob__notes">
+              <li v-for="n in draft.order.notifications" :key="n.id">
+                <span class="ob__note-channel">{{
+                  n.channel === 'portal_message' ? 'Portal message' : 'Email'
+                }}</span>
+                <span v-if="n.recipient" class="cerbo-muted"> → {{ n.recipient }}</span>
+                <div class="ob__note-subject">{{ n.subject }}</div>
+              </li>
+            </ul>
+            <p v-else-if="draft.order.notified === false" class="ob__warn">
+              The patient could not be notified. Share the payment link directly.
+            </p>
             <div class="ob__row">
-              <button class="cerbo-btn" @click="copyLink">
-                {{ copied ? 'Copied' : 'Copy link' }}
-              </button>
-              <a :href="draft.order.checkout_url" target="_blank" rel="noopener" class="cerbo-btn"
-                >Open checkout</a
+              <a
+                :href="draft.order.portal_url"
+                target="_blank"
+                rel="noopener"
+                class="cerbo-btn cerbo-btn--primary"
+                >View as patient</a
               >
+              <button class="cerbo-btn" @click="copyLink">
+                {{ copied ? 'Copied' : 'Copy payment link' }}
+              </button>
               <RouterLink
                 v-if="draft.order.status === 'paid'"
                 :to="`/orders/${draft.order.id}/audit`"
@@ -427,9 +442,6 @@ function fmtDate(iso: string | null): string {
                 >Audit</RouterLink
               >
             </div>
-            <p class="cerbo-muted">
-              Sent {{ fmtDate(draft.order.sent_at) }}. Share this link with the patient.
-            </p>
           </div>
         </CerboPanel>
       </div>
@@ -540,12 +552,21 @@ function fmtDate(iso: string | null): string {
   font-weight: 700;
   margin-bottom: 4px;
 }
-.ob__link-url {
-  display: block;
-  font-size: 11px;
-  word-break: break-all;
+.ob__notes {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.ob__notes li {
+  padding: 4px 6px;
   background: var(--cerbo-zebra);
-  padding: 4px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.ob__note-channel {
+  font-weight: 700;
+}
+.ob__note-subject {
+  color: var(--cerbo-text);
 }
 </style>
