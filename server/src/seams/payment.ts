@@ -18,18 +18,29 @@
 import { createHash } from 'node:crypto';
 import type { Cents } from '../types.js';
 
+export interface PaymentMethod {
+  /** Opaque token from the client-side tokenizer. Never a PAN. */
+  token: string;
+  brand: string;
+  last4: string;
+}
+
 export interface ChargeRequest {
   orderId: number;
   amountCents: Cents;
   /** Client-generated, stable per checkout session. Replays must be safe. */
   idempotencyKey: string;
   description: string;
+  /** Absent for API-only callers (tests, scripts); the fake then succeeds. */
+  paymentMethod?: PaymentMethod | undefined;
 }
 
 export interface ChargeResult {
   status: 'succeeded';
   /** Opaque processor reference. Deterministic per idempotency key in the fake. */
   gatewayRef: string;
+  cardBrand: string | null;
+  cardLast4: string | null;
 }
 
 export interface PaymentGateway {
@@ -48,13 +59,31 @@ export class PaymentDeclinedError extends Error {
   }
 }
 
+/**
+ * The fake "processor". The browser-side tokenizer (web/src/card.ts) never sends the card
+ * number; it sends `fake_tok_<brand>_<last4>_<outcome>` where outcome mirrors Stripe's test
+ * cards: 4242… → ok, 4000 0000 0000 0002 → declined, 4000 0000 0000 0119 → processing error.
+ */
 export class FakePaymentGateway implements PaymentGateway {
   async charge(req: ChargeRequest): Promise<ChargeResult> {
     if (!Number.isSafeInteger(req.amountCents) || req.amountCents < 0) {
       throw new RangeError(`FakePaymentGateway: invalid amount ${req.amountCents}`);
     }
+    const pm = req.paymentMethod;
+    if (pm) {
+      const m = /^fake_tok_([a-z]+)_(\d{4})_(ok|declined|error)$/.exec(pm.token);
+      if (!m) throw new PaymentDeclinedError('Unrecognised payment method', 'invalid_token');
+      if (m[3] === 'declined')
+        throw new PaymentDeclinedError('Your card was declined', 'card_declined');
+      if (m[3] === 'error') throw new Error('processor unavailable (test card)');
+    }
     // Same key → same reference, mimicking a processor honouring idempotency keys.
     const digest = createHash('sha256').update(req.idempotencyKey).digest('hex').slice(0, 24);
-    return { status: 'succeeded', gatewayRef: `fake_pi_${digest}` };
+    return {
+      status: 'succeeded',
+      gatewayRef: `fake_pi_${digest}`,
+      cardBrand: pm?.brand ?? null,
+      cardLast4: pm?.last4 ?? null,
+    };
   }
 }

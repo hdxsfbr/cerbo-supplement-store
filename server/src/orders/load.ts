@@ -18,6 +18,7 @@ export interface OrderRow {
   created_at: string;
   patient_name: string;
   patient_email: string | null;
+  patient_portal_token: string;
   provider_name: string;
 }
 
@@ -44,7 +45,8 @@ export async function loadOrder(
   const base = sql`
     SELECT o.id, o.provider_id, o.patient_id, o.status, o.checkout_token, o.total_cents,
            o.sent_at, o.paid_at, o.created_at,
-           p.name AS patient_name, p.email AS patient_email, pr.name AS provider_name
+           p.name AS patient_name, p.email AS patient_email, p.portal_token AS patient_portal_token,
+           pr.name AS provider_name
     FROM orders o
     JOIN patients p ON p.id = o.patient_id
     JOIN providers pr ON pr.id = o.provider_id`;
@@ -76,6 +78,10 @@ export async function loadOrder(
 
 export function checkoutUrl(publicWebOrigin: string, token: string): string {
   return `${publicWebOrigin.replace(/\/$/, '')}/pay/${token}`;
+}
+
+export function portalUrl(publicWebOrigin: string, portalToken: string): string {
+  return `${publicWebOrigin.replace(/\/$/, '')}/portal/${portalToken}`;
 }
 
 /** Provider-facing JSON shape: everything, including cost basis and margin. */
@@ -110,6 +116,7 @@ export function providerOrderView(loaded: LoadedOrder, publicWebOrigin: string) 
     },
     checkout_url:
       order.status === 'draft' ? null : checkoutUrl(publicWebOrigin, order.checkout_token),
+    portal_url: portalUrl(publicWebOrigin, order.patient_portal_token),
     sent_at: order.sent_at,
     paid_at: order.paid_at,
     created_at: order.created_at,
@@ -117,7 +124,7 @@ export function providerOrderView(loaded: LoadedOrder, publicWebOrigin: string) 
 }
 
 /** Patient-facing JSON shape: items and prices only — no cost basis, no margin (DECISIONS #7). */
-export function patientOrderView(loaded: LoadedOrder) {
+export function patientOrderView(loaded: LoadedOrder, publicWebOrigin: string) {
   const { order, items, split } = loaded;
   return {
     id: order.id,
@@ -125,6 +132,7 @@ export function patientOrderView(loaded: LoadedOrder) {
     paid: order.status === 'paid',
     provider: { name: order.provider_name },
     patient: { name: order.patient_name },
+    portal_url: portalUrl(publicWebOrigin, order.patient_portal_token),
     items: items.map((i) => ({
       name: i.name,
       sku: i.sku,

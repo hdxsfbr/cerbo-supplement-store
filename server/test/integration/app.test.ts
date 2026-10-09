@@ -14,8 +14,8 @@ describe('app shell (T010)', () => {
     const res = await api(ctx.app, 'GET', '/api/health');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.migrations.applied).toBeGreaterThanOrEqual(4);
-    expect(res.body.migrations.latest).toBe('004_truncate_guards.sql');
+    expect(res.body.migrations.applied).toBeGreaterThanOrEqual(5);
+    expect(res.body.migrations.latest).toBe('005_portal_and_cards.sql');
   });
 
   it('unknown API route → 404 error envelope', async () => {

@@ -8,7 +8,7 @@ import { runMigrations } from './db/migrate.js';
 import { buildApp } from './app.js';
 import { SeededIdentity } from './seams/identity.js';
 import { FakePaymentGateway } from './seams/payment.js';
-import { NoopNotifier } from './seams/notifier.js';
+import { PortalNotifier } from './seams/notifier.js';
 
 const config = loadConfig();
 const sql = createDb(config.databaseUrl);
@@ -30,7 +30,7 @@ const app = await buildApp({
   sql,
   identity: new SeededIdentity(sql),
   gateway: new FakePaymentGateway(),
-  notifier: new NoopNotifier(),
+  notifier: new PortalNotifier(sql),
   publicWebOrigin: config.publicWebOrigin,
   staticDir,
   logger: { level: config.logLevel },

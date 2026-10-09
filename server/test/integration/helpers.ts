@@ -16,19 +16,26 @@ import {
   type ChargeResult,
   type PaymentGateway,
 } from '../../src/seams/payment.js';
-import type { Notifier, PaymentNotification } from '../../src/seams/notifier.js';
+import {
+  PortalNotifier,
+  type Notifier,
+  type PaymentNotification,
+} from '../../src/seams/notifier.js';
 
 export const PUBLIC_WEB_ORIGIN = 'http://web.test';
 
+/** Records calls AND delivers through the real PortalNotifier so portal tests see rows. */
 export class RecordingNotifier implements Notifier {
   sent: PaymentNotification[] = [];
   failNext = false;
+  inner: Notifier | null = null;
   async orderReadyForPayment(n: PaymentNotification): Promise<void> {
     if (this.failNext) {
       this.failNext = false;
       throw new Error('smtp down (test)');
     }
     this.sent.push(n);
+    await this.inner?.orderReadyForPayment(n);
   }
 }
 
@@ -77,6 +84,7 @@ export async function createTestContext(): Promise<TestContext> {
   await runMigrations(sql);
 
   const notifier = new RecordingNotifier();
+  notifier.inner = new PortalNotifier(sql);
   const gateway = new RecordingGateway();
   const app = await buildApp({
     sql,

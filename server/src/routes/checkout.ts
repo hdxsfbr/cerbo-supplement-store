@@ -10,7 +10,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { parse } from '../app.js';
+import { parse, publicOrigin } from '../app.js';
 import { HttpError, notFound } from '../errors.js';
 import { PaymentDeclinedError } from '../seams/payment.js';
 import { computeSplit } from '../money/split.js';
@@ -24,6 +24,14 @@ const payBody = z.object({
     .min(8)
     .max(128)
     .regex(/^[A-Za-z0-9_-]+$/, 'idempotency_key must be URL-safe'),
+  // Optional so API-only callers keep working; the browser always sends it (HDX-97).
+  payment_method: z
+    .object({
+      token: z.string().min(8).max(128),
+      brand: z.string().min(1).max(20),
+      last4: z.string().regex(/^\d{4}$/),
+    })
+    .optional(),
 });
 
 export interface PaymentRow {
@@ -33,6 +41,8 @@ export interface PaymentRow {
   amount_cents: number;
   status: string;
   gateway_ref: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
   created_at: string;
 }
 
@@ -40,13 +50,13 @@ const LEDGER_ORDER: LedgerEntryType[] = ['cogs', 'provider_margin', 'platform_fe
 
 export async function loadPayment(sql: Queryable, orderId: number): Promise<PaymentRow | null> {
   const [row] = await sql<PaymentRow[]>`
-    SELECT id, order_id, idempotency_key, amount_cents, status, gateway_ref, created_at
+    SELECT id, order_id, idempotency_key, amount_cents, status, gateway_ref, card_brand, card_last4, created_at
     FROM payments WHERE order_id = ${orderId}`;
   return row ?? null;
 }
 
-function receipt(loaded: LoadedOrder, payment: PaymentRow | null) {
-  const view = patientOrderView(loaded);
+function receipt(loaded: LoadedOrder, payment: PaymentRow | null, origin: string) {
+  const view = patientOrderView(loaded, origin);
   return payment
     ? {
         ...view,
@@ -55,6 +65,8 @@ function receipt(loaded: LoadedOrder, payment: PaymentRow | null) {
           idempotency_key: payment.idempotency_key,
           amount_cents: payment.amount_cents,
           gateway_ref: payment.gateway_ref,
+          card_brand: payment.card_brand,
+          card_last4: payment.card_last4,
           created_at: payment.created_at,
         },
       }
@@ -78,12 +90,12 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
     const loaded = await loadOrder(sql, { id: who.orderId });
     if (!loaded) throw notFound('Checkout link');
     const payment = loaded.order.status === 'paid' ? await loadPayment(sql, loaded.order.id) : null;
-    return receipt(loaded, payment);
+    return receipt(loaded, payment, publicOrigin(req));
   });
 
   // POST /api/checkout/:token/pay — confirm the (simulated) payment; record the split
   app.post<{ Params: { token: string } }>('/api/checkout/:token/pay', async (req) => {
-    const { idempotency_key } = parse(payBody, req.body);
+    const { idempotency_key, payment_method } = parse(payBody, req.body);
     const who = await resolveToken(req.params.token);
 
     const result = await sql.begin(async (tx) => {
@@ -130,6 +142,7 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
           amountCents: split.totalCents,
           idempotencyKey: idempotency_key,
           description: `Supplement order #${lock.id} for ${loaded.order.patient_name}`,
+          paymentMethod: payment_method,
         });
       } catch (err) {
         // Nothing has been written yet; the transaction rolls back and the order stays payable.
@@ -144,9 +157,10 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const [payment] = await tx<PaymentRow[]>`
-        INSERT INTO payments (order_id, idempotency_key, amount_cents, status, gateway_ref)
-        VALUES (${lock.id}, ${idempotency_key}, ${split.totalCents}, ${charge.status}, ${charge.gatewayRef})
-        RETURNING id, order_id, idempotency_key, amount_cents, status, gateway_ref, created_at`;
+        INSERT INTO payments (order_id, idempotency_key, amount_cents, status, gateway_ref, card_brand, card_last4)
+        VALUES (${lock.id}, ${idempotency_key}, ${split.totalCents}, ${charge.status}, ${charge.gatewayRef},
+                ${charge.cardBrand}, ${charge.cardLast4})
+        RETURNING id, order_id, idempotency_key, amount_cents, status, gateway_ref, card_brand, card_last4, created_at`;
       if (!payment) throw new HttpError(500, 'internal_error', 'payment insert returned no row');
 
       await tx`UPDATE orders SET status = 'paid' WHERE id = ${lock.id} AND status = 'awaiting_payment'`;
@@ -176,6 +190,6 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
 
     const loaded = await loadOrder(sql, { id: result.orderId });
     if (!loaded) throw notFound('Order');
-    return receipt(loaded, result.payment);
+    return receipt(loaded, result.payment, publicOrigin(req));
   });
 }

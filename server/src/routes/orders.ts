@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { idParam, parse, publicOrigin, requireProvider } from '../app.js';
 import { HttpError, notFound, orderLocked } from '../errors.js';
 import { loadOrder, providerOrderView } from '../orders/load.js';
+import type { Queryable } from '../db/client.js';
 import { PLATFORM_FEE_BPS, exactFeeDecimal } from '../money/split.js';
 import { loadPayment } from './checkout.js';
 
@@ -24,6 +25,26 @@ const itemsBody = z.object({
     )
     .max(100),
 });
+
+export interface NotificationRow {
+  id: number;
+  channel: 'portal_message' | 'email';
+  recipient: string | null;
+  subject: string;
+  body: string;
+  link: string | null;
+  created_at: string;
+  read_at: string | null;
+}
+
+export async function notificationsFor(
+  sql: Queryable,
+  orderId: number,
+): Promise<NotificationRow[]> {
+  return sql<NotificationRow[]>`
+    SELECT id, channel, recipient, subject, body, link, created_at, read_at
+    FROM notifications WHERE order_id = ${orderId} ORDER BY id`;
+}
 
 export async function ordersRoutes(app: FastifyInstance): Promise<void> {
   const { sql, notifier } = app.deps;
@@ -83,10 +104,12 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
     return view(id, provider.id, publicOrigin(req));
   });
 
-  // GET /api/orders/:id — order + lines + live split preview
+  // GET /api/orders/:id — order + lines + live split preview (+ what was sent to the patient)
   app.get<{ Params: { id: string } }>('/api/orders/:id', async (req) => {
     const provider = await requireProvider(req);
-    return view(idParam(req.params.id), provider.id, publicOrigin(req));
+    const id = idParam(req.params.id);
+    const result = await view(id, provider.id, publicOrigin(req));
+    return { ...result, notifications: await notificationsFor(sql, id) };
   });
 
   // POST /api/orders/:id/send — draft → awaiting_payment; freezes total; issues checkout link
@@ -114,13 +137,16 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
       await notifier.orderReadyForPayment({
         orderId: id,
         patient: result.patient,
+        providerName: result.provider.name,
+        amountCents: result.total_cents,
         checkoutUrl: result.checkout_url!,
+        portalUrl: result.portal_url,
       });
     } catch (err) {
       notified = false;
       req.log.error({ err, orderId: id }, 'notifier failed after send; order is payable');
     }
-    return { ...result, notified };
+    return { ...result, notified, notifications: await notificationsFor(sql, id) };
   });
 
   // GET /api/orders/:id/ledger — audit view of a paid order: every cent, straight from the ledger
