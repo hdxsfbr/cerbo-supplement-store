@@ -3,10 +3,11 @@
 // the portal. Route: /.
 import '../styles/portal-xp.css';
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ACCOUNTS, useLoginStore } from '../stores/login';
 
 const router = useRouter();
+const route = useRoute();
 const login = useLoginStore();
 const email = ref(login.account?.email ?? ACCOUNTS[0]!.email);
 const doctors = ACCOUNTS.filter((a) => a.role === 'doctor');
@@ -15,7 +16,8 @@ const patients = ACCOUNTS.filter((a) => a.role === 'patient');
 function submit(): void {
   const a = login.signIn(email.value);
   if (!a) return;
-  void router.push(a.role === 'doctor' ? '/experimental-chart' : '/experimental-portal');
+  const next = typeof route.query.next === 'string' ? route.query.next : null;
+  void router.push(a.role === 'doctor' ? (next ?? '/experimental-chart') : '/experimental-portal');
 }
 </script>
 

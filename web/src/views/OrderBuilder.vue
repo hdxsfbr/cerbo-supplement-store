@@ -39,7 +39,6 @@ const copied = ref(false);
 async function loadReference(): Promise<void> {
   const [p, s, o] = await Promise.all([api.patients(), api.supplements(), api.listOrders()]);
   patients.value = p.patients;
-  session.providerName = p.provider.name;
   supplements.value = s.supplements;
   recentOrders.value = o.orders;
   if (selectedPatientId.value === null && patients.value[0])

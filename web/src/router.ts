@@ -7,6 +7,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     surface: 'provider' | 'patient' | 'bare';
     title?: string;
+    /** Provider page that manages its own width (the chart grid). */
+    full?: boolean;
   }
 }
 
@@ -57,11 +59,11 @@ const routes: RouteRecordRaw[] = [
     meta: { surface: 'provider', title: 'Inventory' },
   },
   {
-    // EXPERIMENTAL: static replica of Cerbo's chart; no app chrome, nothing wired.
+    // The patient chart (replica of Cerbo's) with the store's Supplements tab.
     path: '/experimental-chart',
     name: 'experimental-chart',
     component: () => import('./views/ExperimentalChart.vue'),
-    meta: { surface: 'bare', title: 'Zeus King — Chart (experimental)' },
+    meta: { surface: 'provider', title: 'Patient Chart', full: true },
   },
   {
     // EXPERIMENTAL: static replica of Cerbo's patient portal; no app chrome, nothing wired.
@@ -82,15 +84,18 @@ const routes: RouteRecordRaw[] = [
 
 export const router = createRouter({ history: createWebHistory(), routes });
 
-// The experimental surfaces need a demo login (stores/login.ts); everything else is unchanged.
+// Provider pages (chart + store) need a signed-in doctor; the Cerbo-style portal a signed-in
+// patient. Token links (checkout, the plain portal) are open by design: the token is the identity.
 router.beforeEach((to) => {
-  if (to.name !== 'experimental-chart' && to.name !== 'experimental-portal') return true;
   const a = useLoginStore().account;
-  if (!a) return { name: 'login' };
-  if (to.name === 'experimental-chart' && a.role !== 'doctor')
-    return { name: 'experimental-portal' };
-  if (to.name === 'experimental-portal' && a.role !== 'patient')
-    return { name: 'experimental-chart' };
+  if (to.meta.surface === 'provider') {
+    if (!a) return { name: 'login', query: { next: to.fullPath } };
+    if (a.role !== 'doctor') return { name: 'experimental-portal' };
+  }
+  if (to.name === 'experimental-portal') {
+    if (!a) return { name: 'login' };
+    if (a.role !== 'patient') return { name: 'experimental-chart' };
+  }
   return true;
 });
 

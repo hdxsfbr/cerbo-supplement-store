@@ -545,10 +545,10 @@ function go(n: (typeof nav)[number]): void {
         <!-- ── Sidebar ───────────────────────────────────────────────────── -->
         <aside class="xp__side">
           <div class="xp-side__hi">Hi {{ firstName }}!</div>
-          <select class="xp-side__switch" @change="signOut">
+          <select class="xp-side__switch">
             <option>Switch Account</option>
-            <option>Sign out</option>
           </select>
+          <a href="#" class="xp-side__out" @click.prevent="signOut">Sign Out</a>
           <ul class="xp-nav">
             <li
               v-for="n in nav"

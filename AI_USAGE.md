@@ -355,3 +355,12 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
 - Added migration 008, provider list/request routes, portal self-add/request endpoints, and an
   8-test integration file covering add, duplicate, cross-provider denial, order-from-list,
   request → fulfil, and decline → message. Verified the full loop in headless Chrome.
+
+### 2026-10-09 — One header for chart and store
+
+- Extracted the chart's Cerbo header into `CerboNav.vue` and routed every provider page through
+  it; the store's own nav bar, the "Acting as" switcher and the seeded-provider list are gone.
+  The login store is now the only thing that sets the acting provider on the identity seam.
+- A regression caught in the browser pass: the store pages' centered width lived in App.vue's
+  scoped styles and vanished with the old nav; moved to `cerbo.css`.
+- The end-to-end script and the demo recorder sign in first now that provider pages are gated.

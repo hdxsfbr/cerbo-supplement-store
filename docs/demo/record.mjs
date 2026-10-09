@@ -169,6 +169,12 @@ const slide = (name) => 'file://' + path.join(HERE, 'slides', name);
 // ─────────────────────────────────────────────────────────────────────────────────────────
 // Static slides (s01, s07) are built from PNGs by mux.sh; screencast emits no frames on a still page.
 
+// sign in as Dr. Welby (demo login) before the first provider scene
+await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
+await page.select('#login-email', 'welby@demo.cer.bo');
+await page.click('button[type=submit]');
+await page.waitForSelector('select[aria-label="Search patients"]');
+
 // s02 — order builder
 await goto(`${BASE}/orders/new`);
 await scene('s02_builder', async () => {

@@ -15,9 +15,6 @@
   --cerbo-bg: #7a8797; /* slate gray-blue, sampled from the Storylane captures (not charcoal) */
   --cerbo-panel-bg: #ffffff;
   --cerbo-panel-border: #d7d7d7;
-  --cerbo-nav-bg: #7a8797; /* same slate as the page; Cerbo's nav has no separate bar colour */
-  --cerbo-nav-fg: #ffffff;
-  --cerbo-nav-active: #f0c419; /* amber underline / badge yellow */
 
   /* Panel header palette — sampled from docs/cerbo-ui-reference/patient-chart-full.jpg */
   --cerbo-header-green: #40641a;
@@ -61,28 +58,11 @@
   font-size: var(--cerbo-font-size);
 }
 
-.cerbo-nav {
-  display: flex;
-  align-items: center;
-  gap: var(--cerbo-space-4);
-  background: var(--cerbo-nav-bg);
-  color: var(--cerbo-nav-fg);
-  padding: var(--cerbo-space-3) var(--cerbo-space-4);
-  font-size: var(--cerbo-font-size);
-}
-
-.cerbo-nav__item {
-  padding: var(--cerbo-space-2) var(--cerbo-space-1);
-  border-bottom: 2px solid transparent;
-  color: var(--cerbo-nav-fg);
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.cerbo-nav__item--active {
-  border-bottom-color: var(--cerbo-nav-active);
-  color: #ffffff;
-  font-weight: 700;
+/* Store pages sit centered under the shared Cerbo header; the chart (meta.full) manages its own grid. */
+.cerbo-main {
+  padding: 12px;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 /* ---------------------------------------------------------------------- Panels ---- */

@@ -4,38 +4,23 @@
 // patient's supplement LIST (clinical: what they take); orders are started from it and
 // completed on the order page. Patient requests from the portal land here too. DECISIONS #17.
 // Only the Supplements tab and its modals are wired to the API; the rest of the chart is static.
-// Route: /experimental-chart.
-import '../styles/chart.css';
+// Route: /experimental-chart (under the shared header, components/CerboNav.vue).
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, ApiError } from '../api';
 import { useLoginStore } from '../stores/login';
-import { useSessionStore } from '../stores/session';
 import { formatCents, formatBps, marginPercentBps } from '../money';
 import type { OrderRequest, Patient, PatientSupplement, Supplement } from '../types';
 
 // The acting provider comes from the demo login (identity seam); the patient being viewed is
-// chosen from the top-right dropdown and kept in the URL (?patient=<id>) so reloads stick.
-useSessionStore();
+// chosen from the header's patient search and kept in the URL (?patient=<id>) so reloads stick.
 const login = useLoginStore();
 const route = useRoute();
 const router = useRouter();
-const doctorInitials = computed(() =>
-  login.account?.role === 'doctor' ? login.account.initials : '',
-);
 const providerName = computed(() => login.account?.name ?? '');
 
-const patients = ref<Patient[]>([]);
 const patient = ref<Patient | null>(null);
 const firstName = computed(() => patient.value?.name.split(' ')[0] ?? '');
-function selectPatient(e: Event): void {
-  const id = Number((e.target as HTMLSelectElement).value);
-  void router.replace({ query: { ...route.query, patient: String(id) } });
-}
-function signOut(): void {
-  login.signOut();
-  void router.push('/');
-}
 const catalog = ref<Supplement[]>([]);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
@@ -46,7 +31,6 @@ async function loadChart(): Promise<void> {
   try {
     const [pts, cat] = await Promise.all([api.patients(), api.supplements()]);
     catalog.value = cat.supplements;
-    patients.value = pts.patients;
     const wanted = Number(route.query.patient);
     patient.value = pts.patients.find((x) => x.id === wanted) ?? pts.patients[0] ?? null;
     modal.value = null;
@@ -309,32 +293,6 @@ const ledger = [
 
 <template>
   <div class="xc">
-    <nav class="xc-nav">
-      <div class="xc-nav__logo">
-        <img src="/cerbo-logo.svg" alt="Cerbo" />
-        <span class="xc-nav__tag">Location/Department A</span>
-      </div>
-      <span class="xc-nav__item">Scheduling<span class="xc-badge">15</span></span>
-      <span class="xc-nav__item">Admin</span>
-      <span class="xc-nav__item">Reporting</span>
-      <span class="xc-nav__item"
-        >Tasks<span class="xc-nav__circle">21</span><span class="xc-badge">21</span></span
-      >
-      <span class="xc-nav__item">Generate</span>
-      <span class="xc-nav__item">My Links</span>
-      <span class="xc-nav__item">Pt Portal</span>
-      <span class="xc-nav__item">Settings</span>
-      <span class="xc-nav__user" :title="providerName" @click="signOut"
-        >&#128100; {{ doctorInitials }}</span
-      >
-      <span class="xc-nav__help">?</span>
-      <span class="xc-nav__note"></span>
-      <select class="xc-nav__search" :value="patient?.id ?? ''" @change="selectPatient">
-        <option value="" disabled>- Search Patients -</option>
-        <option v-for="p in patients" :key="p.id" :value="p.id">{{ p.name }}</option>
-      </select>
-    </nav>
-
     <div class="xc-grid">
       <!-- ── Column 1: patient rail ─────────────────────────────────────── -->
       <div class="xc-col xc-col--rail">

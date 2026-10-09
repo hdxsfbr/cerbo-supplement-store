@@ -36,7 +36,7 @@ export const useLoginStore = defineStore('login', () => {
   const stored = localStorage.getItem(STORAGE_KEY);
   const account = ref<Account | null>(ACCOUNTS.find((a) => `${a.role}:${a.id}` === stored) ?? null);
   const session = useSessionStore();
-  if (account.value?.role === 'doctor') session.setProvider(account.value.id);
+  if (account.value?.role === 'doctor') session.setProvider(account.value.id, account.value.name);
 
   const isDoctor = computed(() => account.value?.role === 'doctor');
   const isPatient = computed(() => account.value?.role === 'patient');
@@ -49,13 +49,14 @@ export const useLoginStore = defineStore('login', () => {
       return null;
     }
     localStorage.setItem(STORAGE_KEY, `${a.role}:${a.id}`);
-    if (a.role === 'doctor') session.setProvider(a.id);
+    if (a.role === 'doctor') session.setProvider(a.id, a.name);
     return a;
   }
 
   function signOut(): void {
     account.value = null;
     localStorage.removeItem(STORAGE_KEY);
+    session.clear();
   }
 
   return { account, isDoctor, isPatient, signIn, signOut };

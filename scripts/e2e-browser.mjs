@@ -24,7 +24,12 @@ page.on('console', (m) => {
     errs.push(`[console] ${m.text()}`);
 });
 
-// Provider: start order for Hera (patient 2), add Omega-3 ×2 and Vitamin D3 at 2.00 (200¢ → half-cent fee boundary)
+// Sign in as Dr. Welby (demo login), then start an order for Hera (patient 2):
+// Omega-3 ×2 and Vitamin D3 at 2.00 (200¢ → half-cent fee boundary)
+await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
+await page.select('#login-email', 'welby@demo.cer.bo');
+await page.click('button[type=submit]');
+await page.waitForSelector('select[aria-label="Search patients"]');
 await page.goto(`${BASE}/orders/new`, { waitUntil: 'networkidle0' });
 await page.select('select[aria-label="Patient"]', '2');
 await page.click('button::-p-text(Start supplement order)');

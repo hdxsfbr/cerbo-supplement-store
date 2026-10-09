@@ -231,6 +231,11 @@ directions). Orders are started from it: select rows, Create supplement order, p
 on the order page. Patients see the same list in the portal, can add what they take, and can
 request an order; the provider prices it or declines it (DECISIONS #17).
 
+Every provider page (chart and store) renders under one shared Cerbo-style header
+(`web/src/components/CerboNav.vue`): a **Supplements** menu holds Orders, Inventory and the
+sales report, the patient search opens that patient's chart from anywhere, and the user chip is
+the sign-out menu. Provider pages require a signed-in doctor.
+
 The root `/` is a demo sign-in with two providers and two patients (hard-coded in
 `web/src/stores/login.ts`). A provider lands on the chart and picks the patient from the
 top-right dropdown; a patient lands on `/experimental-portal`, a static replica of Cerbo's
