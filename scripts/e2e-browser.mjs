@@ -29,7 +29,7 @@ page.on('console', (m) => {
 await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
 await page.select('#login-email', 'welby@demo.cer.bo');
 await page.click('button[type=submit]');
-await page.waitForSelector('select[aria-label="Search patients"]');
+await page.waitForSelector('button.xc-nav__user');
 await page.goto(`${BASE}/orders/new`, { waitUntil: 'networkidle0' });
 await page.select('select[aria-label="Patient"]', '2');
 await page.click('button::-p-text(Start supplement order)');

@@ -173,7 +173,7 @@ const slide = (name) => 'file://' + path.join(HERE, 'slides', name);
 await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
 await page.select('#login-email', 'welby@demo.cer.bo');
 await page.click('button[type=submit]');
-await page.waitForSelector('select[aria-label="Search patients"]');
+await page.waitForSelector('button.xc-nav__user');
 
 // s02 — order builder
 await goto(`${BASE}/orders/new`);

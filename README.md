@@ -233,7 +233,7 @@ request an order; the provider prices it or declines it (DECISIONS #17).
 
 Every provider page (chart and store) renders under one shared Cerbo-style header
 (`web/src/components/CerboNav.vue`): a **Supplements** menu holds Orders, Inventory and the
-sales report, the patient search opens that patient's chart from anywhere, and the user chip is
+sales report, the patient search (on the chart only) opens that patient's chart, and the user chip is
 the sign-out menu. Provider pages require a signed-in doctor.
 
 The root `/` is a demo sign-in with two providers and two patients (hard-coded in
