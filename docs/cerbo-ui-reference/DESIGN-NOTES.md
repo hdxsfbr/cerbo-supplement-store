@@ -40,7 +40,8 @@ what's needed for the "lives inside the EHR" illusion in a take-home exercise.
 ## Logo
 
 `web/public/cerbo-logo.svg` is Cerbo's own wordmark (https://www.cer.bo/wp-content/themes/cerbo2025/images/logo.svg),
-shown on a white tile at the top-left of the header exactly as their chart does. Used solely to
+shown straight on the slate header (wordmark recoloured to white, coloured mark kept) exactly as
+their chart does. Used solely to
 sell the "lives inside Cerbo" illusion in a take-home for Cerbo; it is their trademark.
 
 ## What we'll build with it

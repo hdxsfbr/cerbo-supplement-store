@@ -46,18 +46,15 @@ function onProviderChange(e: Event): void {
 </template>
 
 <style scoped>
-/* Cerbo's chart shows its logo on a white tile at the top-left of the slate header. */
+/* Cerbo's logo sits straight on the slate header: white wordmark, coloured mark (no tile). */
 .cerbo-nav__logo {
   display: inline-flex;
   align-items: center;
-  background: #ffffff;
-  border-radius: 3px;
-  padding: 4px 10px;
   margin-right: 16px;
   line-height: 0;
 }
 .cerbo-nav__logo img {
-  height: 24px;
+  height: 26px;
   width: auto;
   display: block;
 }
