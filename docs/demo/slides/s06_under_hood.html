@@ -1,10 +1,17 @@
-<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"></head><body>
-<div class="slide">
-  <img class="logo" src="../../../web/public/cerbo-logo.svg" alt="Cerbo">
-  <div class="title" style="font-size:54px;top:110px">Under the hood</div>
-  <div class="card" style="left:48px;top:210px;width:880px;height:800px">
-    <div class="hdr green">server/src/money/split.ts — pure, integer cents</div>
-    <div class="body"><pre><span class="kw">export function</span> platformFeeCents(totalCents) {
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="base.css" />
+  </head>
+  <body>
+    <div class="slide">
+      <img class="logo" src="../../../web/public/cerbo-logo.svg" alt="Cerbo" />
+      <div class="title" style="font-size: 54px; top: 110px">Under the hood</div>
+      <div class="card" style="left: 48px; top: 210px; width: 880px; height: 800px">
+        <div class="hdr green">server/src/money/split.ts — pure, integer cents</div>
+        <div class="body">
+          <pre><span class="kw">export function</span> platformFeeCents(totalCents) {
   <span class="kw">const</span> scaled = totalCents * 75;
   <span class="kw">return</span> Math.floor((scaled + 5000) / 10000); <span class="cm">// half-up</span>
 }
@@ -16,12 +23,18 @@
   <span class="hl">margin = total − cogs − fee</span>       <span class="cm">// residual ⇒ exact</span>
   memos  = { platform_fee: <span class="cm">"75 bps of 6600¢ = 49.5¢ → 50¢ (half-up)"</span>, … }
 }</pre>
-    <div style="margin-top:22px;font-size:22px"><span class="chip">20 unit tests</span> half-cent boundaries · 1¢ order · negative margin · 5 000-run sum-invariant property</div>
-    </div>
-  </div>
-  <div class="card" style="left:960px;top:210px;width:912px;height:800px">
-    <div class="hdr maroon">server/src/db/migrations/002_integrity.sql — the database decides</div>
-    <div class="body"><pre><span class="kw">CREATE CONSTRAINT TRIGGER</span> ledger_entries_split_invariant
+          <div style="margin-top: 22px; font-size: 22px">
+            <span class="chip">20 unit tests</span> half-cent boundaries · 1¢ order · negative
+            margin · 5 000-run sum-invariant property
+          </div>
+        </div>
+      </div>
+      <div class="card" style="left: 960px; top: 210px; width: 912px; height: 800px">
+        <div class="hdr maroon">
+          server/src/db/migrations/002_integrity.sql — the database decides
+        </div>
+        <div class="body">
+          <pre><span class="kw">CREATE CONSTRAINT TRIGGER</span> ledger_entries_split_invariant
   <span class="kw">AFTER INSERT ON</span> ledger_entries <span class="kw">DEFERRABLE INITIALLY DEFERRED</span>
   <span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> assert_order_split();
 
@@ -34,11 +47,20 @@
 <span class="kw">CREATE TRIGGER</span> ledger_entries_no_update_delete
   <span class="kw">BEFORE UPDATE OR DELETE ON</span> ledger_entries …
 <span class="kw">REVOKE UPDATE, DELETE, TRUNCATE ON</span> ledger_entries <span class="kw">FROM</span> PUBLIC;</pre>
-    <div style="margin-top:18px;font-size:21px;line-height:1.5">
-      <span class="ok">✓</span> mismatched sum → rolled back &nbsp; <span class="ok">✓</span> wrong fee → rolled back<br>
-      <span class="ok">✓</span> 4th entry · UPDATE · DELETE · TRUNCATE → refused &nbsp; <span class="ok">✓</span> 5 concurrent pays → 1 charge<br>
-      <span class="chip">60 integration tests</span> on a throwaway Postgres per file, in CI on every push
-    </div></div>
-  </div>
-  <div class="foot">Seams: identity (EHR session) · payment (processor) · messaging (portal + email) — interfaces with documented fakes</div>
-</div></body></html>
+          <div style="margin-top: 18px; font-size: 21px; line-height: 1.5">
+            <span class="ok">✓</span> mismatched sum → rolled back &nbsp;
+            <span class="ok">✓</span> wrong fee → rolled back<br />
+            <span class="ok">✓</span> 4th entry · UPDATE · DELETE · TRUNCATE → refused &nbsp;
+            <span class="ok">✓</span> 5 concurrent pays → 1 charge<br />
+            <span class="chip">60 integration tests</span> on a throwaway Postgres per file, in CI
+            on every push
+          </div>
+        </div>
+      </div>
+      <div class="foot">
+        Seams: identity (EHR session) · payment (processor) · messaging (portal + email) —
+        interfaces with documented fakes
+      </div>
+    </div>
+  </body>
+</html>
