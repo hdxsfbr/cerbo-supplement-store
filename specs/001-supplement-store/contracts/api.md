@@ -25,7 +25,7 @@ authenticate by capability token in the URL — no header.
 | Method & Path | Purpose | Notes |
 |---|---|---|
 | `POST /api/orders` | Create draft | body `{ patient_id }` → order with status `draft` |
-| `PUT /api/orders/:id/items` | Replace draft items | body `{ items: [{ supplement_id, quantity, unit_price_cents }] }`; server snapshots `unit_cogs_cents`; 409 unless status=`draft` |
+| `PUT /api/orders/:id/items` | Replace draft items | body `{ items: [{ supplement_id, quantity, unit_price_cents, sig? }] }` (`sig` = optional patient directions, ≤500 chars); server snapshots `unit_cogs_cents`; 409 unless status=`draft` |
 | `GET /api/orders/:id` | Fetch order + items + live split preview | preview computed, not persisted, while draft |
 | `POST /api/orders/:id/send` | draft → awaiting_payment | 422 if no items; freezes `total_cents`; returns `checkout_url` (the "email" — Notifier no-op logs it) |
 | `GET /api/orders/:id/ledger` | Audit view of a paid order | entries + memo + fee inputs (FR-006); 409 if not paid |

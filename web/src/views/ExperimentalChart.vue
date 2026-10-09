@@ -1,147 +1,304 @@
 <script setup lang="ts">
-// EXPERIMENTAL — a static, non-functional replica of Cerbo's patient chart, built to match
-// docs/cerbo-ui-reference/chart-storylane-full.png as closely as possible. Nothing here is wired
-// to the API; it is the canvas we will later embed the supplement store into. Route: /experimental-chart.
+// EXPERIMENTAL — a replica of Cerbo's patient chart (docs/cerbo-ui-reference/) with the
+// supplement store embedded where Cerbo keeps its Rx flow: a Supplements tab in the Medications
+// panel, a picker modal ("+ Add Supplement") and a detail modal ("+ Complete Supplement Order").
+// Only the Supplements tab and modals are wired to the API; the rest of the chart is static.
+// Route: /experimental-chart.
 import '../styles/chart.css';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { api } from '../api';
+import { useOrderDraftStore } from '../stores/orderDraft';
+import { useSessionStore } from '../stores/session';
 import {
   formatCents,
+  formatBps,
+  marginPercentBps,
+  parseCentsInput,
   previewSplit,
   priceForMarginBps,
-  marginPercentBps,
-  formatBps,
 } from '../money';
+import type { OrderView, Patient, Supplement } from '../types';
 
-// Supplements tab + modals (static). `tab` switches the list; `modal` shows the picker or the
-// detail form; `picked` is the highlighted catalog row.
+// The chart is Zeus King's (seeded patient #1 for Dr. Welby); the acting provider comes from
+// the session store (identity seam), exactly as on the order builder.
+const CHART_PATIENT = 'Zeus King';
+useSessionStore();
+const draft = useOrderDraftStore();
+
+const patient = ref<Patient | null>(null);
+const catalog = ref<Supplement[]>([]);
+const history = ref<OrderView[]>([]); // this patient's sent/paid orders, newest first
+const loading = ref(true);
+const loadError = ref<string | null>(null);
+
+async function loadChart(): Promise<void> {
+  loading.value = true;
+  loadError.value = null;
+  try {
+    const [pts, cat, list] = await Promise.all([
+      api.patients(),
+      api.supplements(),
+      api.listOrders(),
+    ]);
+    catalog.value = cat.supplements;
+    const p = pts.patients.find((x) => x.name === CHART_PATIENT) ?? pts.patients[0] ?? null;
+    patient.value = p;
+    if (!p) return;
+    const mine = list.orders.filter((o) => o.patient_id === p.id).slice(0, 20);
+    const views = await Promise.all(mine.map((o) => api.getOrder(o.id)));
+    history.value = views.filter((v) => v.status !== 'draft');
+    const open = views.find((v) => v.status === 'draft');
+    if (open) await draft.load(open.id);
+    else draft.reset();
+  } catch (err) {
+    loadError.value = (err as Error).message;
+  } finally {
+    loading.value = false;
+  }
+}
+onMounted(loadChart);
+
+// ── Supplements tab ──────────────────────────────────────────────────────────────────────
 const tab = ref<'meds' | 'supps'>('meds');
-const modal = ref<null | 'pick' | 'detail'>(null);
-const picked = ref(2);
-const catalog = [
-  {
-    name: 'Omega-3 Fish Oil 1000 mg (120 softgels)',
-    sku: 'OMG-1000-120',
-    strength: '1000MG',
-    form: 'SOFTGEL,ORAL',
-    unit: 'BOTTLE (120 softgels)',
-    cogs: 1850,
-    price: 3200,
-    stock: 119,
-    take: '2',
-    freq: 'QD (once a day)',
-    days: '60',
-  },
-  {
-    name: 'Vitamin D3 5000 IU (90 caps)',
-    sku: 'VD3-5000-090',
-    strength: '5000IU',
-    form: 'CAP,ORAL',
-    unit: 'BOTTLE (90 caps)',
-    cogs: 400,
-    price: 850,
-    stock: 199,
-    take: '1',
-    freq: 'QD (once a day)',
-    days: '90',
-  },
-  {
-    name: 'Magnesium Glycinate 400 mg (120 caps)',
-    sku: 'MAG-GLY-120',
-    strength: '400MG',
-    form: 'CAP,ORAL',
-    unit: 'BOTTLE (120 caps)',
-    cogs: 950,
-    price: 1900,
-    stock: 150,
-    take: '2',
-    freq: 'QHS (at bedtime)',
-    days: '60',
-  },
-  {
-    name: 'Probiotic 50B CFU (30 caps)',
-    sku: 'PRO-50B-030',
-    strength: '50B CFU',
-    form: 'CAP,ORAL',
-    unit: 'BOTTLE (30 caps)',
-    cogs: 2400,
-    price: 4500,
-    stock: 60,
-    take: '1',
-    freq: 'QD (once a day)',
-    days: '30',
-  },
-  {
-    name: 'Methylated B-Complex (60 caps)',
-    sku: 'MBC-060',
-    strength: '—',
-    form: 'CAP,ORAL',
-    unit: 'BOTTLE (60 caps)',
-    cogs: 1300,
-    price: 2400,
-    stock: 90,
-    take: '1',
-    freq: 'QAM (morning)',
-    days: '60',
-  },
-  {
-    name: 'Curcumin Phytosome 500 mg (60 caps)',
-    sku: 'CUR-PHY-060',
-    strength: '500MG',
-    form: 'CAP,ORAL',
-    unit: 'BOTTLE (60 caps)',
-    cogs: 2200,
-    price: 3800,
-    stock: 45,
-    take: '1',
-    freq: 'BID (twice a day)',
-    days: '30',
-  },
-];
-const sel = computed(() => catalog[picked.value]!);
-const split = computed(() =>
-  previewSplit([
-    { quantity: 1, unit_price_cents: sel.value.price, unit_cogs_cents: sel.value.cogs },
-  ]),
-);
-const marginPct = computed(() => {
-  const bps = marginPercentBps(sel.value.price, sel.value.price - sel.value.cogs);
-  return bps === null ? '—' : (bps / 100).toFixed(1);
-});
-const marginLabel = computed(() => {
-  const bps = marginPercentBps(sel.value.price, sel.value.price - sel.value.cogs);
-  return bps === null ? '—' : formatBps(bps);
-});
-void priceForMarginBps;
-const supps = [
-  {
-    name: 'Omega-3 Fish Oil 1000 mg',
-    sig: '2 softgels daily with food',
-    price: '$32.00',
-    status: 'paid',
-    date: '10/08/24',
-  },
-  {
-    name: 'Vitamin D3 5000 IU',
-    sig: '1 cap QD',
-    price: '$10.00',
-    status: 'paid',
-    date: '10/08/24',
-  },
-  {
-    name: 'Magnesium Glycinate 400 mg',
-    sig: '2 caps QHS',
-    price: '$19.00',
-    status: 'due',
-    date: '10/09/24',
-  },
-  {
-    name: 'Probiotic 50B CFU',
-    sig: '1 cap QD, empty stomach',
-    price: '$45.00',
+
+interface SuppRow {
+  key: string;
+  name: string;
+  sig: string | null;
+  cents: number;
+  status: 'paid' | 'due' | 'draft';
+  date: string;
+  orderId: number | null;
+  supplementId: number;
+}
+function shortDate(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`;
+}
+const rows = computed<SuppRow[]>(() => {
+  const out: SuppRow[] = draft.lines.map((l) => ({
+    key: `d-${l.supplement_id}`,
+    name: l.name,
+    sig: l.sig ?? null,
+    cents: l.quantity * l.unit_price_cents,
     status: 'draft',
     date: '',
-  },
+    orderId: draft.order?.id ?? null,
+    supplementId: l.supplement_id,
+  }));
+  for (const o of history.value) {
+    for (const i of o.items) {
+      out.push({
+        key: `o${o.id}-${i.id}`,
+        name: i.name,
+        sig: i.sig,
+        cents: i.line_total_cents,
+        status: o.status === 'paid' ? 'paid' : 'due',
+        date: shortDate(o.status === 'paid' ? o.paid_at : o.sent_at),
+        orderId: o.id,
+        supplementId: i.supplement_id,
+      });
+    }
+  }
+  return out;
+});
+const lastUpdate = computed(() => {
+  const latest = history.value[0];
+  const iso = latest?.paid_at ?? latest?.sent_at ?? latest?.created_at;
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+});
+const draftSummary = computed(() => {
+  const n = draft.lines.length;
+  if (n === 0) return null;
+  return `Draft order: ${n} line${n === 1 ? '' : 's'} · ${formatCents(draft.preview.total_cents)} · not yet sent`;
+});
+const actionError = ref<string | null>(null);
+const busy = ref(false);
+
+async function removeDraftLine(supplementId: number): Promise<void> {
+  draft.removeLine(supplementId);
+  await draft.flush();
+  actionError.value = draft.error;
+}
+
+async function sendDraft(): Promise<void> {
+  if (!draft.canSend || busy.value) return;
+  busy.value = true;
+  actionError.value = null;
+  try {
+    const sent = await draft.send();
+    if (!sent) {
+      actionError.value = draft.error ?? 'Could not send the order';
+      return;
+    }
+    history.value.unshift(sent);
+    draft.reset();
+  } finally {
+    busy.value = false;
+  }
+}
+
+// ── Modal 1: picker ──────────────────────────────────────────────────────────────────────
+const modal = ref<null | 'pick' | 'detail'>(null);
+const query = ref('');
+const picked = ref(0);
+const matches = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  if (!q) return catalog.value;
+  return catalog.value.filter(
+    (s) => s.name.toLowerCase().includes(q) || (s.sku ?? '').toLowerCase().includes(q),
+  );
+});
+watch(query, () => (picked.value = 0));
+const hovered = computed<Supplement | null>(() => matches.value[picked.value] ?? null);
+function marginAtDefault(s: Supplement): string {
+  const bps = marginPercentBps(s.default_price_cents, s.default_price_cents - s.unit_cogs_cents);
+  return bps === null ? '—' : formatBps(bps);
+}
+function openPicker(): void {
+  query.value = '';
+  picked.value = 0;
+  actionError.value = null;
+  modal.value = 'pick';
+}
+
+// ── Modal 2: detail ──────────────────────────────────────────────────────────────────────
+const TAKE = ['1', '2', '3', '4'];
+const UNITS = ['capsule(s)', 'softgel(s)', 'tablet(s)', 'scoop(s)', 'dropper(s)', 'packet(s)'];
+const FREQ = [
+  'once daily',
+  'twice daily',
+  'three times daily',
+  'every morning',
+  'at bedtime',
+  'with meals',
+  'as needed',
 ];
+const chosen = ref<Supplement | null>(null);
+const form = ref({
+  take: '2',
+  unit: 'capsule(s)',
+  freq: 'once daily',
+  note: '',
+  qty: '1',
+  price: '',
+  margin: '',
+  ack: true,
+});
+
+function guessUnit(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes('softgel')) return 'softgel(s)';
+  if (n.includes('tablet')) return 'tablet(s)';
+  if (n.includes('powder') || n.includes('scoop')) return 'scoop(s)';
+  if (n.includes('drop') || n.includes('liquid')) return 'dropper(s)';
+  return 'capsule(s)';
+}
+function parseSig(sig: string): { take: string; unit: string; freq: string; note: string } | null {
+  const m = /^Take (\d) (\S+) (.+?)(?:\. (.*))?$/.exec(sig);
+  if (!m) return null;
+  return { take: m[1]!, unit: m[2]!, freq: m[3]!, note: m[4] ?? '' };
+}
+function openDetail(s: Supplement): void {
+  chosen.value = s;
+  const existing = draft.lines.find((l) => l.supplement_id === s.id);
+  const price = existing?.unit_price_cents ?? s.default_price_cents;
+  const parsed = existing?.sig ? parseSig(existing.sig) : null;
+  form.value = {
+    take: parsed && TAKE.includes(parsed.take) ? parsed.take : '1',
+    unit: parsed && UNITS.includes(parsed.unit) ? parsed.unit : guessUnit(s.name),
+    freq: parsed && FREQ.includes(parsed.freq) ? parsed.freq : 'once daily',
+    note: parsed ? parsed.note : existing?.sig ? existing.sig : '',
+    qty: String(existing?.quantity ?? 1),
+    price: formatCents(price).replace(/^\$/, ''),
+    margin: marginText(price, s.unit_cogs_cents),
+    ack: true,
+  };
+  actionError.value = null;
+  modal.value = 'detail';
+}
+function marginText(priceCents: number, cogs: number): string {
+  const bps = marginPercentBps(priceCents, priceCents - cogs);
+  return bps === null ? '' : (bps / 100).toFixed(1);
+}
+const priceCents = computed(() => parseCentsInput(form.value.price));
+const qty = computed(() => {
+  const n = Number(form.value.qty);
+  return Number.isInteger(n) && n > 0 && n <= 1000 ? n : null;
+});
+const formValid = computed(() => priceCents.value !== null && qty.value !== null && form.value.ack);
+const detailSplit = computed(() =>
+  chosen.value && priceCents.value !== null && qty.value !== null
+    ? previewSplit([
+        {
+          quantity: qty.value,
+          unit_price_cents: priceCents.value,
+          unit_cogs_cents: chosen.value.unit_cogs_cents,
+        },
+      ])
+    : null,
+);
+function onPriceInput(): void {
+  if (!chosen.value || priceCents.value === null) return;
+  form.value.margin = marginText(priceCents.value, chosen.value.unit_cogs_cents);
+}
+function onMarginInput(): void {
+  if (!chosen.value) return;
+  const pct = Number(form.value.margin);
+  if (!Number.isFinite(pct)) return;
+  const cents = priceForMarginBps(chosen.value.unit_cogs_cents, Math.round(pct * 100));
+  if (cents !== null) form.value.price = formatCents(cents).replace(/^\$/, '');
+}
+const composedSig = computed(() => {
+  const f = form.value;
+  const base = `Take ${f.take} ${f.unit} ${f.freq}`;
+  const note = f.note.trim();
+  return note ? `${base}. ${note}` : base;
+});
+
+async function commit(then: 'close' | 'another' | 'send'): Promise<void> {
+  const s = chosen.value;
+  if (!patient.value || !s || !formValid.value || busy.value) return;
+  busy.value = true;
+  actionError.value = null;
+  try {
+    if (!draft.order) await draft.start(patient.value.id);
+    if (!draft.lines.some((l) => l.supplement_id === s.id)) draft.addLine(s);
+    draft.setQuantity(s.id, qty.value!);
+    draft.setPrice(s.id, priceCents.value!);
+    draft.setSig(s.id, composedSig.value);
+    await draft.flush();
+    if (draft.error) {
+      actionError.value = draft.error;
+      return;
+    }
+    if (then === 'send') {
+      const sent = await draft.send();
+      if (!sent) {
+        actionError.value = draft.error ?? 'Could not send the order';
+        return;
+      }
+      history.value.unshift(sent);
+      draft.reset();
+      modal.value = null;
+      tab.value = 'supps';
+      return;
+    }
+    tab.value = 'supps';
+    if (then === 'another') openPicker();
+    else modal.value = null;
+  } catch (err) {
+    actionError.value = (err as Error).message;
+  } finally {
+    busy.value = false;
+  }
+}
 
 const encounters = [
   { icon: 'plus', name: 'Functional Med Visit', who: 'M.W.', date: '08/07/2024' },
@@ -363,7 +520,7 @@ const ledger = [
                 >
                 <span class="xc-tab">Pellets</span>
                 <span class="xc-tab">IVs</span>
-                <span v-if="tab === 'supps'" class="xc-tabs__add" @click="modal = 'pick'"
+                <span v-if="tab === 'supps'" class="xc-tabs__add" @click="openPicker"
                   >+ Add Supplement</span
                 >
               </div>
@@ -392,34 +549,63 @@ const ledger = [
               </div>
               <input class="xc-note" value="Test note" readonly />
             </div>
-            <div v-else class="xc-panel__body">
-              <div v-for="sp in supps" :key="sp.name" class="xc-supp">
+            <div v-else class="xc-panel__body xc-panel__body--scroll">
+              <div v-if="loading" class="xc-supp__empty">Loading…</div>
+              <div v-else-if="loadError" class="xc-supp__empty xc-supp__err">
+                {{ loadError }}
+              </div>
+              <div v-else-if="rows.length === 0" class="xc-supp__empty">
+                No supplements on file. Use + Add Supplement to start an order.
+              </div>
+              <div v-for="sp in rows" :key="sp.key" class="xc-supp">
                 <input type="checkbox" />
                 <span class="xc-supp__name"
-                  ><a href="#">{{ sp.name }}</a>
-                  <span class="xc-supp__sig">— {{ sp.sig }}</span></span
+                  ><a
+                    href="#"
+                    @click.prevent="
+                      sp.status === 'draft' &&
+                      openDetail(catalog.find((c) => c.id === sp.supplementId)!)
+                    "
+                    >{{ sp.name }}</a
+                  >
+                  <span v-if="sp.sig" class="xc-supp__sig">— {{ sp.sig }}</span></span
                 >
-                <span
+                <router-link
+                  v-if="sp.orderId !== null && sp.status !== 'draft'"
+                  :to="`/orders/${sp.orderId}`"
                   class="xc-supp__status"
-                  :class="{
-                    'xc-supp__status--paid': sp.status === 'paid',
-                    'xc-supp__status--draft': sp.status === 'draft',
-                  }"
-                  >{{
-                    sp.status === 'paid'
-                      ? 'Paid ' + sp.date
-                      : sp.status === 'due'
-                        ? 'Sent ' + sp.date
-                        : 'Draft'
-                  }}</span
+                  :class="{ 'xc-supp__status--paid': sp.status === 'paid' }"
+                  >{{ (sp.status === 'paid' ? 'Paid ' : 'Sent ') + sp.date }}</router-link
                 >
-                <span class="xc-supp__price">{{ sp.price }}</span>
+                <span v-else class="xc-supp__status xc-supp__status--draft">Draft</span>
+                <span class="xc-supp__price">{{ formatCents(sp.cents) }}</span>
+                <span
+                  class="xc-supp__rm"
+                  :class="{ 'xc-supp__rm--spacer': sp.status !== 'draft' }"
+                  title="Remove from draft"
+                  @click="sp.status === 'draft' && removeDraftLine(sp.supplementId)"
+                  >✕</span
+                >
               </div>
-              <input class="xc-note" value="Draft order: 1 line · $45.00 · not yet sent" readonly />
+              <div v-if="draftSummary" class="xc-note xc-note--draft">
+                {{ draftSummary }}
+                <a
+                  href="#"
+                  :class="{ 'xc-disabled': !draft.canSend || busy }"
+                  @click.prevent="sendDraft"
+                  >Send to patient</a
+                >
+              </div>
+              <div v-if="actionError && !modal" class="xc-supp__err">{{ actionError }}</div>
             </div>
             <div class="xc-panel__foot">
-              Most Recent Update: {{ tab === 'meds' ? 'August 7, 2024' : 'October 9, 2026' }} by Dr.
-              Marcus Welby
+              <template v-if="tab === 'meds'"
+                >Most Recent Update: August 7, 2024 by Dr. Marcus Welby</template
+              >
+              <template v-else-if="lastUpdate"
+                >Most Recent Update: {{ lastUpdate }} by {{ history[0]?.provider.name }}</template
+              >
+              <template v-else>No orders yet</template>
             </div>
           </div>
         </div>
@@ -607,96 +793,102 @@ const ledger = [
       <div class="xc-overlay" @click="modal = null"></div>
       <div class="xc-modal">
         <div class="xc-modal__hdr">
-          + Add Supplement for Zeus King<span class="xc-modal__close" @click="modal = null">✕</span>
+          + Add Supplement for {{ patient?.name ?? '…'
+          }}<span class="xc-modal__close" @click="modal = null">✕</span>
         </div>
         <div class="xc-modal__body" style="position: relative">
           <div class="xc-pick">
             <div>
-              <input class="xc-pick__search" placeholder="- type to search -" readonly />
+              <input
+                v-model="query"
+                class="xc-pick__search"
+                placeholder="- type to search -"
+                autofocus
+                @keydown.enter.prevent="hovered && openDetail(hovered)"
+                @keydown.down.prevent="picked = Math.min(picked + 1, matches.length - 1)"
+                @keydown.up.prevent="picked = Math.max(picked - 1, 0)"
+              />
               <div class="xc-pick__list">
                 <div
-                  v-for="(c, i) in catalog"
-                  :key="c.sku"
+                  v-for="(c, i) in matches"
+                  :key="c.id"
                   class="xc-pick__row"
                   :class="{ 'xc-pick__row--on': i === picked }"
                   @mouseenter="picked = i"
-                  @click="modal = 'detail'"
+                  @click="openDetail(c)"
                 >
                   {{ c.name }}
                 </div>
-                <div class="xc-pick__hint">
-                  Above matches are from the practice catalog. To search the full supplier list, add
-                  '+' to your search.
+                <div v-if="matches.length === 0" class="xc-pick__hint">
+                  No matches in the practice catalog.
+                </div>
+                <div v-else class="xc-pick__hint">
+                  Matches are from the practice catalog. Products not listed here can be added under
+                  Inventory.
                 </div>
               </div>
             </div>
             <div class="xc-pick__help">
-              Please search for the supplement you are seeking. You may type in as many words as
-              you'd like (including only the first few letters of a word), including brand name,
-              active ingredient, form (i.e. 'Capsule'), strength (i.e. '400mg'), etc.
+              Search the practice catalog by product name or SKU. Pick a supplement to set the
+              patient's directions, quantity and price; the order is sent to the patient portal for
+              payment.
               <div class="xc-pick__warn">
                 Adding a supplement here creates a store order for the patient. Add supplements
                 within a SOAP note if they are part of a documented plan.
               </div>
             </div>
           </div>
-          <div class="xc-card">
-            <b class="t">{{ sel.name.toUpperCase() }}</b>
-            <b>SKU:</b> {{ sel.sku }}<br />
-            <b>Strength:</b> {{ sel.strength }}<br />
-            <b>Form:</b> {{ sel.form }}<br />
-            <b>Default price:</b> {{ formatCents(sel.price) }}<br />
-            <b>Your cost (COGS):</b> {{ formatCents(sel.cogs) }}<br />
-            <b>Margin at default:</b> {{ marginLabel }} before platform fee<br />
-            <b>On hand:</b> {{ sel.stock }}<br />
-            <b>Over the Counter?</b> Yes
+          <div v-if="hovered" class="xc-card">
+            <b class="t">{{ hovered.name.toUpperCase() }}</b>
+            <b>SKU:</b> {{ hovered.sku ?? '—' }}<br />
+            <b>Default price:</b> {{ formatCents(hovered.default_price_cents) }}<br />
+            <b>Your cost (COGS):</b> {{ formatCents(hovered.unit_cogs_cents) }}<br />
+            <b>Margin at default:</b> {{ marginAtDefault(hovered) }} before platform fee<br />
+            <b>On hand:</b> {{ hovered.inventory_count }}<br />
+            <b
+              v-if="draft.lines.some((l) => l.supplement_id === hovered!.id)"
+              class="xc-card__draft"
+              >Already on the draft order — opening it edits that line</b
+            >
           </div>
         </div>
       </div>
     </template>
 
     <!-- ── Modal 2: detail (replica of "+ Complete Rx") ───────────────── -->
-    <template v-if="modal === 'detail'">
+    <template v-if="modal === 'detail' && chosen">
       <div class="xc-overlay" @click="modal = null"></div>
       <div class="xc-modal" style="top: 110px">
         <div class="xc-modal__hdr">
-          + Complete Supplement Order for Zeus King
-          <select class="xc-modal__profile">
-            <option>Use Protocol</option>
-            <option>Adrenal support</option>
-            <option>Gut repair</option>
-          </select>
+          + Complete Supplement Order for {{ patient?.name ?? '…' }}
           <span class="xc-modal__close" @click="modal = null">✕</span>
         </div>
         <div class="xc-modal__body">
-          <a href="#" class="xc-back" @click.prevent="modal = 'pick'"
-            >Back to Supplement Selector</a
-          >
+          <a href="#" class="xc-back" @click.prevent="openPicker">Back to Supplement Selector</a>
           <div class="xc-detail__title">
-            {{ sel.name.toUpperCase() }} ( Strength:
-            <input type="text" :value="sel.strength" readonly /> )
+            {{ chosen.name.toUpperCase() }}
+            <span v-if="chosen.sku" class="xc-detail__sku">( SKU: {{ chosen.sku }} )</span>
           </div>
 
           <fieldset class="xc-fs">
             <legend>Patient Sig:</legend>
             <div class="xc-fs__row">
               Take
-              <select>
-                <option>2</option>
+              <select v-model="form.take">
+                <option v-for="t in TAKE" :key="t">{{ t }}</option>
               </select>
-              <select>
-                <option>CAP,ORAL</option>
+              <select v-model="form.unit">
+                <option v-for="u in UNITS" :key="u">{{ u }}</option>
               </select>
-              <select>
-                <option>ORAL</option>
+              <select v-model="form.freq">
+                <option v-for="f in FREQ" :key="f">{{ f }}</option>
               </select>
-              <select>
-                <option>QHS (at bedtime)</option>
-              </select>
-              ( <input type="checkbox" /> <i>or as needed</i>)
-              <span class="xc-fs__hint">Freetext Only</span>
+              <span class="xc-fs__hint">Shown to the patient as: “{{ composedSig }}”</span>
             </div>
-            <textarea placeholder="Other instructions to the patient"></textarea>
+            <textarea
+              v-model="form.note"
+              placeholder="Other instructions to the patient"
+            ></textarea>
           </fieldset>
 
           <fieldset class="xc-fs">
@@ -705,57 +897,60 @@ const ledger = [
               <span style="font-weight: 400">Cerbo Supplement Store</span>
             </legend>
             <div class="xc-fs__row">
-              Quantity <input type="text" value="1" readonly style="width: 50px" />
-              <select>
-                <option>BOTTLE (120 caps)</option>
-              </select>
+              Quantity
+              <input
+                v-model="form.qty"
+                type="text"
+                inputmode="numeric"
+                style="width: 50px"
+                :class="{ 'xc-bad': qty === null }"
+              />
               &nbsp; Patient price $
-              <input type="text" value="19.00" readonly style="width: 70px" /> &nbsp; or target
-              margin <input type="text" :value="marginPct" readonly style="width: 56px" /> %
+              <input
+                v-model="form.price"
+                type="text"
+                inputmode="decimal"
+                style="width: 70px"
+                :class="{ 'xc-bad': priceCents === null }"
+                @input="onPriceInput"
+              />
+              &nbsp; or target margin
+              <input
+                v-model="form.margin"
+                type="text"
+                inputmode="decimal"
+                style="width: 56px"
+                @input="onMarginInput"
+              />
+              %
               <span class="xc-fs__hint">Default price pre-filled from the practice catalog</span>
             </div>
-            <div class="xc-split">
+            <div v-if="detailSplit" class="xc-split">
               <div>
-                Patient pays<b>{{ formatCents(split.total_cents) }}</b>
+                Patient pays<b>{{ formatCents(detailSplit.total_cents) }}</b>
               </div>
               <div>
-                Your cost (COGS)<b class="neg">−{{ formatCents(split.cogs_cents) }}</b>
+                Your cost (COGS)<b class="neg">−{{ formatCents(detailSplit.cogs_cents) }}</b>
               </div>
               <div>
-                Platform fee (75 bps)<b class="neg">−{{ formatCents(split.fee_cents) }}</b>
+                Platform fee (75 bps)<b class="neg">−{{ formatCents(detailSplit.fee_cents) }}</b>
               </div>
               <div>
-                Your margin<b :class="{ neg: split.margin_cents < 0 }">{{
-                  formatCents(split.margin_cents)
+                Your margin<b :class="{ neg: detailSplit.margin_cents < 0 }">{{
+                  formatCents(detailSplit.margin_cents)
                 }}</b>
               </div>
             </div>
-            <div class="xc-fs__row" style="margin-top: 10px">
-              Days supply
-              <input type="text" :value="sel.days" readonly style="width: 50px" /> &nbsp; Refills (
-              <input type="text" value="0" readonly style="width: 40px" /> )
-              <label style="margin-left: auto"
-                ><input type="checkbox" checked /> Send payment link to patient portal</label
-              >
+            <div v-else class="xc-split xc-split--invalid">
+              Enter a whole-number quantity and a price in dollars and cents to see the split.
             </div>
-          </fieldset>
-
-          <fieldset class="xc-fs">
-            <legend>Provider Notes</legend>
-            <div class="xc-fs__row">
-              <label><input type="checkbox" /> <b>This is an ongoing supplement</b></label>
-              <label><input type="checkbox" /> <b>Warn me when this supply runs out</b></label>
-            </div>
-            <textarea
-              placeholder="Private notes about this order (not shown to the patient)"
-            ></textarea>
-            <div style="text-align: right; font-size: 12px; color: #013365; margin-top: 4px">
-              Associated diagnoses with this order
+            <div v-if="detailSplit && detailSplit.margin_cents < 0" class="xc-supp__err">
+              This price is below your cost. The order can still be sent.
             </div>
           </fieldset>
 
           <div class="xc-ack">
-            <input type="checkbox" checked />
+            <input v-model="form.ack" type="checkbox" />
             <span
               >I understand this order is placed through the in-house store: the patient pays the
               practice directly, and the margin and 75 bps platform fee are recorded on the order's
@@ -763,11 +958,17 @@ const ledger = [
             >
           </div>
 
+          <div v-if="actionError" class="xc-supp__err">{{ actionError }}</div>
           <div class="xc-btns">
-            <button class="xc-btn" @click="modal = null">+ Add to Order</button>
-            <button class="xc-btn" @click="modal = 'pick'">+ Add &amp; Add Another</button>
-            <button class="xc-btn" @click="modal = null">+ Add &amp; Send to Patient</button>
-            <button class="xc-btn xc-btn--gray">Add &amp; Print</button>
+            <button class="xc-btn" :disabled="!formValid || busy" @click="commit('close')">
+              + Add to Order
+            </button>
+            <button class="xc-btn" :disabled="!formValid || busy" @click="commit('another')">
+              + Add &amp; Add Another
+            </button>
+            <button class="xc-btn" :disabled="!formValid || busy" @click="commit('send')">
+              + Add &amp; Send to Patient
+            </button>
           </div>
         </div>
       </div>

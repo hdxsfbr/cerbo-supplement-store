@@ -114,6 +114,30 @@ describe('order assembly → send (T012)', () => {
     expect(res.body.split.memos.platform_fee).toBe('75 bps of 6700¢ = 50.25¢ → 50¢ (half-up)');
   });
 
+  it('PUT items persists an optional patient sig per line and omits it when absent', async () => {
+    const res = await api(ctx.app, 'PUT', `/api/orders/${orderId}/items`, {
+      provider: WELBY,
+      body: {
+        items: [
+          { supplement_id: 1, quantity: 2, unit_price_cents: 3200, sig: 'Take 2 softgels daily' },
+          { supplement_id: 2, quantity: 1, unit_price_cents: 300 },
+        ],
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.items[0].sig).toBe('Take 2 softgels daily');
+    expect(res.body.items[1].sig).toBeNull();
+    const again = await api(ctx.app, 'GET', `/api/orders/${orderId}`, { provider: WELBY });
+    expect(again.body.items[0].sig).toBe('Take 2 softgels daily');
+    const tooLong = await api(ctx.app, 'PUT', `/api/orders/${orderId}/items`, {
+      provider: WELBY,
+      body: {
+        items: [{ supplement_id: 1, quantity: 1, unit_price_cents: 1, sig: 'x'.repeat(501) }],
+      },
+    });
+    expect(tooLong.status).toBe(400);
+  });
+
   it('the COGS snapshot is immune to later catalog changes (FR-002)', async () => {
     await ctx.sql`UPDATE supplements SET unit_cogs_cents = 9999 WHERE id = 1`;
     const res = await api(ctx.app, 'GET', `/api/orders/${orderId}`, { provider: WELBY });

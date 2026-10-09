@@ -216,3 +216,12 @@ docker run -p 3000:3000 -e DATABASE_URL=postgres://user:pass@host:5432/db cerbo-
 Deployed with the Railway CLI: `railway init` → `railway add --database postgres` →
 `railway add --service app --variables 'DATABASE_URL=${{Postgres.DATABASE_URL}}'` →
 `railway up --service app` → `railway domain`. Live at https://app-production-500d.up.railway.app.
+
+## Experimental: the store inside a Cerbo chart
+
+Branch `experiments` adds `/experimental-chart`, a replica of Cerbo's patient chart with the
+store embedded where Cerbo keeps its Rx flow: a **Supplements** tab in the Medications panel,
+a "+ Add Supplement" picker and a "+ Complete Supplement Order" form (patient sig, pricing with
+the live split, add / add another / add & send). It reuses the same order-draft store and API;
+the only schema addition is an optional per-line patient `sig` (migration 007). Reference
+screenshots and design notes live in `docs/cerbo-ui-reference/`.

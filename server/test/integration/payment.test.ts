@@ -60,6 +60,7 @@ describe('patient checkout view', () => {
       sku: 'OMG-1000-120',
       quantity: 2,
       unit_price_cents: 3200,
+      sig: null,
       line_total_cents: 6400,
     });
     expect(JSON.stringify(res.body)).not.toMatch(/cogs|margin|fee|split/);

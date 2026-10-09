@@ -40,6 +40,8 @@ export interface OrderItemView {
   quantity: number;
   unit_cogs_cents: number;
   unit_price_cents: number;
+  /** Patient directions, free text (optional) */
+  sig: string | null;
   line_total_cents: number;
   line_cogs_cents: number;
   below_cogs: boolean;
@@ -112,6 +114,7 @@ export interface OrderLineInput {
   supplement_id: number;
   quantity: number;
   unit_price_cents: number;
+  sig?: string | null;
 }
 
 export interface CheckoutView {
@@ -126,6 +129,7 @@ export interface CheckoutView {
     sku: string | null;
     quantity: number;
     unit_price_cents: number;
+    sig?: string | null;
     line_total_cents: number;
   }[];
   total_cents: number;

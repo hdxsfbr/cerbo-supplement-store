@@ -179,6 +179,7 @@ onMounted(loadOrder);
             <td>
               <div class="portal-items__name">{{ item.name }}</div>
               <div v-if="item.sku" class="portal-items__sku">{{ item.sku }}</div>
+              <div v-if="item.sig" class="portal-items__sku">{{ item.sig }}</div>
             </td>
             <td class="portal-items__num">{{ item.quantity }}</td>
             <td class="portal-items__num">{{ formatCents(item.unit_price_cents) }}</td>

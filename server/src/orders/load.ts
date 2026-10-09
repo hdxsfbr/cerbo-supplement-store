@@ -30,6 +30,7 @@ export interface OrderItemRow {
   quantity: number;
   unit_cogs_cents: number;
   unit_price_cents: number;
+  sig: string | null;
 }
 
 export interface LoadedOrder {
@@ -61,7 +62,7 @@ export async function loadOrder(
   if (!order) return null;
 
   const items = await sql<OrderItemRow[]>`
-    SELECT oi.id, oi.supplement_id, s.name, s.sku, oi.quantity, oi.unit_cogs_cents, oi.unit_price_cents
+    SELECT oi.id, oi.supplement_id, s.name, s.sku, oi.quantity, oi.unit_cogs_cents, oi.unit_price_cents, oi.sig
     FROM order_items oi JOIN supplements s ON s.id = oi.supplement_id
     WHERE oi.order_id = ${order.id}
     ORDER BY oi.id`;
@@ -100,6 +101,7 @@ export function providerOrderView(loaded: LoadedOrder, publicWebOrigin: string) 
       quantity: i.quantity,
       unit_cogs_cents: i.unit_cogs_cents,
       unit_price_cents: i.unit_price_cents,
+      sig: i.sig,
       line_total_cents: i.quantity * i.unit_price_cents,
       line_cogs_cents: i.quantity * i.unit_cogs_cents,
       below_cogs: i.unit_price_cents < i.unit_cogs_cents,
@@ -138,6 +140,7 @@ export function patientOrderView(loaded: LoadedOrder, publicWebOrigin: string) {
       sku: i.sku,
       quantity: i.quantity,
       unit_price_cents: i.unit_price_cents,
+      sig: i.sig,
       line_total_cents: i.quantity * i.unit_price_cents,
     })),
     total_cents: order.total_cents ?? split.totalCents,

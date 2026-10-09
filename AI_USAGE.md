@@ -320,3 +320,15 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   `payment_attempts` table that doesn't exist yet.
 - ARCHITECTURE.md moved to the repo root and gained request flows, source-of-truth table,
   consistency model, security/privacy, tenancy and operability sections.
+
+### 2026-10-09 — Chart replica and the embedded Rx-style supplement flow
+
+- Built `/experimental-chart` from Cerbo's Storylane screenshots, first as a static replica, then
+  with a Supplements tab plus "+ Add Supplement" picker and "+ Complete Supplement Order" modals
+  copied from Cerbo's Rx flow. Andre approved the static modals before anything was wired.
+- Wiring reused the order-draft store instead of new state; the only server change is an
+  optional `sig` column (migration 007) with contract, tests and the checkout view updated.
+- Verified with a headless-Chrome run of the whole flow (search, pick, edit sig/price, add two
+  lines, reopen a draft line to check prefill, send) and the API read-back of the saved sig.
+- Agent judgment call that Andre should confirm: pharmacy-only fields from the Rx form (refills,
+  days supply, protocol select, print) were removed instead of shown as inert controls.

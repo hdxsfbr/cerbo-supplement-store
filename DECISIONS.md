@@ -186,3 +186,21 @@ interfaces are unchanged; only their fake implementations got more faithful.
 **Trade-off:** More surface to maintain for a demo, and a "fake tokenizer" is a thing a reader
 has to understand is fake. In exchange the demo tells the true story: the provider never
 handles a link, the patient pays from a message, and declines are a real path.
+
+## 15. Embed the store where Cerbo keeps its Rx flow, and persist a per-line patient sig
+
+**Date:** 2026-10-09
+**Context:** The standalone order builder works but is not how a Cerbo provider would meet the
+feature. Cerbo's chart has a Medications panel with an "+ Add New Rx" picker and a "+ Complete
+Rx" form (docs/cerbo-ui-reference/). Andre asked for a replica of the chart and then for the
+store to live inside it as a Supplements tab with the same two-modal flow.
+**Decision:** `/experimental-chart` (branch `experiments`) hosts the replica; only the Supplements
+tab and its two modals are wired to the API, and they reuse the existing order-draft store, so the
+consistency model (serialised saves, validity gating) is unchanged. The Rx form's Patient Sig
+fieldset maps to a new nullable `order_items.sig` column (migration 007, ≤500 chars) that the
+checkout view shows to the patient. Pharmacy-only concepts (refills, days supply, protocols,
+"warn when supply runs out", print) were dropped rather than left as dead chrome.
+**Trade-off:** The sig is free text composed from selects plus a note, not a structured dose
+record, so it cannot be reasoned about (interactions, adherence) later without re-parsing. That
+is enough for a storefront; a real EHR integration would store the structured fields Cerbo's Rx
+model already has.

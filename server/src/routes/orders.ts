@@ -21,6 +21,7 @@ const itemsBody = z.object({
         supplement_id: z.number().int().positive(),
         quantity: z.number().int().positive().max(1_000),
         unit_price_cents: z.number().int().min(0).max(100_000_000),
+        sig: z.string().trim().max(500).nullable().optional(),
       }),
     )
     .max(100),
@@ -96,6 +97,7 @@ export async function ordersRoutes(app: FastifyInstance): Promise<void> {
             supplement_id: i.supplement_id,
             quantity: i.quantity,
             unit_price_cents: i.unit_price_cents,
+            sig: i.sig ? i.sig : null,
             unit_cogs_cents: 0,
           })),
         )}`;
