@@ -191,6 +191,11 @@ export interface DashboardSummary {
     margin_cents: number;
     fee_cents: number;
   }[];
-  inventory: (Supplement & { units_sold: number; low: boolean; negative: boolean })[];
+  inventory: (Supplement & {
+    units_sold: number;
+    units_sold_mine: number;
+    low: boolean;
+    negative: boolean;
+  })[];
   low_stock_threshold: number;
 }

@@ -184,9 +184,9 @@ function fmtDate(iso: string | null): string {
         </CerboPanel>
 
         <CerboPanel
-          title="Inventory"
+          title="Inventory (shared across the practice)"
           color="navy"
-          :footer="`Low-stock threshold: ${data.low_stock_threshold}`"
+          :footer="`Stock and 'Sold (all)' cover every provider in the practice; the tiles and 'Sold by you' are ${data.provider.name} only. Low-stock threshold: ${data.low_stock_threshold}`"
         >
           <template #actions>
             <span v-if="inventoryAlerts" class="cerbo-chip--warn"
@@ -199,8 +199,21 @@ function fmtDate(iso: string | null): string {
                 <th>Supplement</th>
                 <th class="cerbo-table__num">COGS</th>
                 <th class="cerbo-table__num">Default price</th>
-                <th class="cerbo-table__num">Sold</th>
-                <th class="cerbo-table__num">On hand</th>
+                <th
+                  class="cerbo-table__num"
+                  title="Units sold by the acting provider — same scope as the tiles"
+                >
+                  Sold by you
+                </th>
+                <th class="cerbo-table__num" title="Units sold by all providers in the practice">
+                  Sold (all)
+                </th>
+                <th
+                  class="cerbo-table__num"
+                  title="Practice-wide stock; moves when any provider's order is paid"
+                >
+                  On hand
+                </th>
                 <th></th>
               </tr>
             </thead>
@@ -218,6 +231,7 @@ function fmtDate(iso: string | null): string {
                 <td class="cerbo-table__num cerbo-money">
                   {{ formatCents(s.default_price_cents) }}
                 </td>
+                <td class="cerbo-table__num">{{ s.units_sold_mine }}</td>
                 <td class="cerbo-table__num">{{ s.units_sold }}</td>
                 <td class="cerbo-table__num">
                   <template v-if="editing[s.id] !== undefined">

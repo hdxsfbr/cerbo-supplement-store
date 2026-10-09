@@ -67,15 +67,27 @@ export interface InventoryRow {
   unit_cogs_cents: number;
   default_price_cents: number;
   inventory_count: number;
+  /** Units sold across the practice (all providers) — matches the shared stock count. */
   units_sold: number;
+  /** Units sold by the acting provider — matches the money tiles' scope. */
+  units_sold_mine: number;
 }
 
-/** Inventory is practice-wide (Cerbo holds the stock), so it is intentionally not provider-scoped. */
-export async function dashboardInventory(q: Queryable): Promise<InventoryRow[]> {
+/**
+ * Stock is practice-wide (Cerbo holds the inventory), so `inventory_count` and `units_sold` are
+ * NOT provider-scoped; `units_sold_mine` is, so the table can sit next to per-provider money
+ * tiles without looking inconsistent.
+ */
+export async function dashboardInventory(
+  q: Queryable,
+  providerId: number,
+): Promise<InventoryRow[]> {
   return q<InventoryRow[]>`
     SELECT s.id, s.name, s.sku, s.unit_cogs_cents, s.default_price_cents, s.inventory_count,
            COALESCE((SELECT SUM(oi.quantity) FROM order_items oi JOIN orders o ON o.id = oi.order_id
-                     WHERE oi.supplement_id = s.id AND o.status = 'paid'), 0)::int AS units_sold
+                     WHERE oi.supplement_id = s.id AND o.status = 'paid'), 0)::int AS units_sold,
+           COALESCE((SELECT SUM(oi.quantity) FROM order_items oi JOIN orders o ON o.id = oi.order_id
+                     WHERE oi.supplement_id = s.id AND o.status = 'paid' AND o.provider_id = ${providerId}), 0)::int AS units_sold_mine
     FROM supplements s ORDER BY s.name`;
 }
 
@@ -91,7 +103,7 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
         Promise.all([
           dashboardTotals(tx, provider.id),
           dashboardPaidOrders(tx, provider.id),
-          dashboardInventory(tx),
+          dashboardInventory(tx, provider.id),
         ]),
     );
 

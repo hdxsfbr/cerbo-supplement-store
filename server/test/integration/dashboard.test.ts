@@ -98,10 +98,15 @@ describe('dashboard summary (T022)', () => {
     const omega = res.body.inventory.find((s: { sku: string }) => s.sku === 'OMG-1000-120');
     expect(omega).toMatchObject({
       units_sold: 2,
+      units_sold_mine: 2,
       inventory_count: 118,
       low: false,
       negative: false,
     });
+    // the other provider sees the shared stock and practice-wide sales, but 0 sold by them
+    const anderson = await api(ctx.app, 'GET', '/api/dashboard/summary', { provider: ANDERSON });
+    const omegaA = anderson.body.inventory.find((s: { sku: string }) => s.sku === 'OMG-1000-120');
+    expect(omegaA).toMatchObject({ units_sold: 2, units_sold_mine: 0, inventory_count: 118 });
     const adrenal = res.body.inventory.find((s: { sku: string }) => s.sku === 'ADR-SUP-120'); // seeded at 20
     expect(adrenal).toMatchObject({ inventory_count: 20, low: true, negative: false });
   });
