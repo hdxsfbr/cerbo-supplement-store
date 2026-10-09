@@ -191,6 +191,9 @@
   background: var(--cerbo-zebra);
 }
 
+/* Both th and td so numeric headers line up with their values (th has its own text-align). */
+.cerbo-table th.cerbo-table__num,
+.cerbo-table td.cerbo-table__num,
 .cerbo-table__num {
   text-align: right;
   font-variant-numeric: tabular-nums;
