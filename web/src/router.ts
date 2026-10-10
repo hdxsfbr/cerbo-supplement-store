@@ -65,12 +65,15 @@ const routes: RouteRecordRaw[] = [
     meta: { surface: 'provider', title: 'Inventory' },
   },
   {
-    // The patient chart (replica of Cerbo's) with the store's Supplements tab.
-    path: '/experimental-chart',
-    name: 'experimental-chart',
-    component: () => import('./views/ExperimentalChart.vue'),
+    // The patient chart (replica of Cerbo's) with the store's Supplements tab; the doctor's
+    // landing page.
+    path: '/chart',
+    name: 'chart',
+    component: () => import('./views/PatientChart.vue'),
     meta: { surface: 'provider', title: 'Patient Chart', full: true },
   },
+  { path: '/chart', redirect: (to) => ({ path: '/chart', query: to.query }) },
+  { path: '/portal', redirect: '/portal' },
   {
     // Patient portal (replica of Cerbo's) for the signed-in demo patient…
     path: '/portal',
@@ -101,7 +104,7 @@ router.beforeEach((to) => {
   }
   if (to.name === 'portal') {
     if (!a) return { name: 'login' };
-    if (a.role !== 'patient') return { name: 'experimental-chart' };
+    if (a.role !== 'patient') return { name: 'chart' };
   }
   return true;
 });

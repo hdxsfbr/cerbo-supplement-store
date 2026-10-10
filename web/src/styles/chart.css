@@ -1,5 +1,5 @@
 /*
- * EXPERIMENTAL — static replica of Cerbo's patient chart (docs/cerbo-ui-reference/chart-storylane-full.png).
+ * The patient chart + shared header — a replica of Cerbo's (docs/cerbo-ui-reference/chart-storylane-full.png).
  * Everything is namespaced under .xc so nothing leaks into the real screens. Pixel values are the
  * reference's (2560 px wide) × 0.75, i.e. designed for a 1920 px viewport. Colours are sampled.
  */

@@ -24,7 +24,7 @@ const STORE = [
 const storeActive = computed(() => STORE.some((s) => s.match.test(route.path)));
 
 // Patient search: only on the chart, mirroring the patient being viewed.
-const onChart = computed(() => route.name === 'experimental-chart');
+const onChart = computed(() => route.name === 'chart');
 const patients = ref<Patient[]>([]);
 onMounted(async () => {
   try {
@@ -36,7 +36,7 @@ onMounted(async () => {
 const currentPatient = computed(() => (onChart.value ? String(route.query.patient ?? '') : ''));
 function openChart(e: Event): void {
   const id = (e.target as HTMLSelectElement).value;
-  if (id) void router.push({ name: 'experimental-chart', query: { patient: id } });
+  if (id) void router.push({ name: 'chart', query: { patient: id } });
 }
 
 // User menu
@@ -55,7 +55,7 @@ function signOut(): void {
 
 <template>
   <nav class="xc-shell xc-nav">
-    <RouterLink class="xc-nav__logo" :to="{ name: 'experimental-chart' }" aria-label="Cerbo home">
+    <RouterLink class="xc-nav__logo" :to="{ name: 'chart' }" aria-label="Cerbo home">
       <img src="/cerbo-logo.svg" alt="Cerbo" />
       <span class="xc-nav__tag">Location/Department A</span>
     </RouterLink>

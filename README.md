@@ -45,31 +45,41 @@ that machine's address — payment links are built from `PUBLIC_WEB_ORIGIN`.
 
 ### The 3-minute demo path
 
-1. **Order builder** (`/orders/new`) — you are "Dr. Marcus Welby" via the identity seam (switch
-   provider top-right). Pick **Zeus King**, add two supplements. Prices pre-fill from the
-   catalog default; override one, or type a margin % and watch the price derive. The amber
-   *Billing* panel shows the live split.
-2. **Send to patient** — the order locks and the builder shows what went out: a secure portal
-   message and an email nudge, the way Cerbo notifies patients. Click **View as patient**.
-3. **Patient portal** — the message, the balance due, the invoice list. **Review and pay** opens
-   checkout with a card form. Try the *Declined* test card first, then *4242…*. Double-click Pay.
-   Refresh. One payment, receipt shows "Visa ending 4242".
-4. **Audit** (`/orders/:id/audit`) — the ledger: three entries, their memos, Σ = amount paid,
+Sign in at `/` as **welby@demo.cer.bo** (no password; the sign-in is a demo stand-in for Cerbo's
+EHR login, see below).
+
+1. **Chart** (`/chart`) — a replica of Cerbo's patient chart. Pick **Zeus King** in the top-right
+   patient search. The **Supplements** tab is his supplement _list_: **+ Add Supplement** opens
+   the catalog picker, then the directions form (Cerbo's Patient Sig). Add two.
+2. **Create supplement order** — tick the rows, click the link. The order page opens pre-filled at
+   catalog prices with the directions. Override a price, or type a margin % and watch the price
+   derive. The amber *Billing* panel shows the live split: COGS, 75 bps fee, your margin.
+3. **Send to patient** — the order locks and shows what went out: a secure portal message and an
+   email nudge, the way Cerbo notifies patients. Click **View as patient**.
+4. **Patient portal** — a replica of Cerbo's. *Secure Messages* has the message with **Pay Now**;
+   *Invoices & Payment* has the balance, statement and invoices. Pay with the *Declined* test card
+   first, then *4242…*. Double-click Pay. Refresh. One payment; the receipt says "Visa ending 4242".
+5. **Audit** (`/orders/:id/audit`) — the ledger: three entries, their memos, Σ = amount paid,
    and the fee computation (`75 bps of 6600¢ = 49.5¢ → 50¢ (half-up)`).
-5. **Reporting** (`/dashboard`) — GMV, margin, COGS, fees as sums over the ledger, per provider.
-6. **Inventory** (`/inventory`) — practice-wide stock shared by all providers, with inline edit and
-   low/oversold flags. Its own tab on purpose: stock is shared, the report is not.
+6. **Orders / Sales report / Inventory** (Supplements menu) — the order list with filters and
+   sorting; GMV, margin, COGS and fees as sums over the ledger, per provider; practice-wide stock
+   with inline edit and low/oversold flags.
+
+The patient side of the loop: sign in as **zeus@olympus.example**, open *My Supplements*, add
+something you take, tick rows and **Request an Order**. Back on the chart the request shows as
+a badge on the Supplements tab; the doctor creates the order from it (and prices it) or declines
+it with a note that becomes a secure message. See DECISIONS #17.
 
 ### Tests
 
 ```bash
 npm install
-npm test                       # server money math (20) + web money helpers and draft-store races (31); no DB
+npm test                       # server money math (20) + web money/card helpers and draft-store races (37); no DB
 docker compose up -d db
-npm run test:integration       # 51 cases against a throwaway Postgres per file — see below
+npm run test:integration       # 70 cases against a throwaway Postgres per file — see below
 npm run test:coverage -w server   # V8 coverage for server/src only
 npm run typecheck && npm run lint && npm run format:check
-node scripts/e2e-browser.mjs   # headless Chrome: builder → send → pay → reload → audit (needs a running stack)
+node scripts/e2e-browser.mjs   # headless Chrome: sign in → order → send → portal → pay → reload → audit (needs a running stack)
 ```
 
 Test scopes, so the numbers aren't misread: unit tests cover pure TypeScript on both sides;
@@ -158,15 +168,17 @@ glossary are in [ARCHITECTURE.md](ARCHITECTURE.md).
 server/src/db/migrations/     001 schema · 002 integrity triggers · 003 seed
 server/src/money/split.ts     the split, pure integer math
 server/src/seams/             identity · payment · notifier (interfaces + fakes)
-server/src/routes/            catalog · patients · orders · checkout · dashboard
-web/src/views/                OrderBuilder · Checkout · OrderAudit · Dashboard
+server/src/routes/            catalog · patients · orders · checkout · dashboard · portal · supplementList
+server/src/supplements/       the patient's supplement list + order requests (shared loaders)
+web/src/views/                Login · PatientChart · Orders · OrderBuilder · OrderAudit · Dashboard · Inventory · PatientPortal · Checkout
+web/src/components/           CerboNav (provider header) · PortalShell (patient frame) · SupplementSearch · panels/inputs
 ```
 
 ## What is stubbed, and where the seam is
 
 | Boundary | What is faked here | Where the seam is | What production would do |
 |---|---|---|---|
-| **Identity / EHR** | Acting provider comes from an `x-acting-provider` header (switcher in the nav); patient access is a capability token per order (`/pay/<token>`) and per patient (`/portal/<token>`). | `server/src/seams/identity.ts` → `IdentityProvider` | Read the EHR session for the provider; back the patient links with the portal session. Route code calls the same three methods; session plumbing (cookies, middleware) is new code around them. |
+| **Identity / EHR** | A demo sign-in (`/`, no password) sets the acting provider, sent as an `x-acting-provider` header; a patient sign-in exchanges the seeded patient id for that patient's portal token (`POST /api/portal/session`). Patient links are capability tokens per order (`/pay/<token>`) and per patient (`/portal/<token>`). **Anyone can sign in as anyone**: this is the EHR login stand-in, not authentication. | `server/src/seams/identity.ts` → `IdentityProvider` | Read the EHR session for the provider; back the patient links with the portal session. Route code calls the same three methods; session plumbing (cookies, middleware) is new code around them. |
 | **Payment** | A card form in the browser runs a *fake tokenizer* (`web/src/card.ts`): the number never leaves the page; the server gets `fake_tok_<brand>_<last4>_<outcome>`. `FakePaymentGateway` honours Stripe-style test cards (4242… succeeds, 4000 0000 0000 0002 declines → 402, …0119 → 502, nothing written). Brand + last4 are stored for the receipt. | `server/src/seams/payment.ts` → `PaymentGateway` | Stripe Elements (or similar) tokenizes in an iframe; PaymentIntent-style flow with a pending row, the network call outside the DB lock, and webhook reconciliation — see "The payment boundary, honestly" above. The seam interface stays; the route orchestration changes. The DB still refuses a second payment per order and re-asserts the split at commit. |
 | **Messaging / patient portal** | `PortalNotifier` writes what Cerbo would send — a secure portal message and an email nudge — to a `notifications` table; the patient portal (`/portal/<token>`, a replica of Cerbo's) reads them back with the patient's invoices, list and requests, and checkout (`/pay/<token>`) renders inside it under Invoices & Payment. Nothing is actually sent. Notification is best-effort *after* the send commits: a failure returns `notified: false`, never a failed send. | `server/src/seams/notifier.ts` → `Notifier` | Cerbo's **Secure Messages** (portal queue) + **Patient Emails** APIs, from an outbox row written inside the send transaction and delivered asynchronously with retries; the portal page would be Cerbo's own portal, where patients already view and pay bills. |
 | **Shipping / fulfilment** | Not modelled. Inventory is a count that decrements at payment and may go negative (flagged). | — | Reservation at send, release on expiry, fulfilment events. |
@@ -217,26 +229,24 @@ Deployed with the Railway CLI: `railway init` → `railway add --database postgr
 `railway add --service app --variables 'DATABASE_URL=${{Postgres.DATABASE_URL}}'` →
 `railway up --service app` → `railway domain`. Live at https://app-production-500d.up.railway.app.
 
-## Experimental: the store inside a Cerbo chart
+## The app, screen by screen
 
-Branch `experiments` adds `/experimental-chart`, a replica of Cerbo's patient chart with the
-store embedded where Cerbo keeps its Rx flow: a **Supplements** tab in the Medications panel,
-a "+ Add Supplement" picker and a "+ Complete Supplement Order" form (patient sig, pricing with
-the live split, add / add another / add & send). It reuses the same order-draft store and API;
-the only schema addition is an optional per-line patient `sig` (migration 007). Reference
-screenshots and design notes live in `docs/cerbo-ui-reference/`.
+Every provider page renders under one Cerbo-style header (`web/src/components/CerboNav.vue`).
+Cerbo's own items are static; the **Supplements** menu is ours: Orders (list with status/patient
+filters and sortable columns), New order, Inventory, Sales report. Patient search appears on the
+chart only, where a patient is in context. The user chip is the sign-out menu.
 
-The chart's Supplements tab is the patient's supplement _list_ (what they take, with
-directions). Orders are started from it: select rows, Create supplement order, price and send
-on the order page. Patients see the same list in the portal, can add what they take, and can
-request an order; the provider prices it or declines it (DECISIONS #17).
+- **Chart** (`/chart`, the doctor's landing page) — a replica of Cerbo's patient chart built from
+  `docs/cerbo-ui-reference/`. The Supplements tab is the patient's supplement _list_ (what they
+  take, with directions; provider- or patient-added) plus the patient's open requests. Orders are
+  started from it by selecting rows. The rest of the chart is demo filler.
+- **Order page** (`/orders/new`, `/orders/:id`) — the only place money is set: lines, prices, the
+  live split, send. **Orders** (`/orders`) lists them. **Audit** shows the ledger of a paid order.
+- **Patient portal** (`/portal` signed in, `/portal/<token>` by link) — a replica of Cerbo's:
+  Secure Messages, My Bills and Payments (balance, statement, invoices, pay), My Supplements
+  (the list, self-report, request an order). Checkout (`/pay/<token>`) renders inside it.
+- **Sign-in** (`/`) — the two seeded providers and six seeded patients, hard-coded in
+  `web/src/stores/login.ts` to match `003_seed.sql`.
 
-Every provider page (chart and store) renders under one shared Cerbo-style header
-(`web/src/components/CerboNav.vue`): a **Supplements** menu holds Orders (the list, with
-status/patient filters and sortable columns), New order, Inventory and the sales report, the patient search (on the chart only) opens that patient's chart, and the user chip is
-the sign-out menu. Provider pages require a signed-in doctor.
-
-The root `/` is a demo sign-in with the two seeded providers and six seeded patients (hard-coded in
-`web/src/stores/login.ts`). A provider lands on the chart and picks the patient from the
-top-right dropdown; a patient lands on `/portal`, the Cerbo-style patient portal. The store's own pages (`/orders/new`, `/dashboard`, `/inventory`,
-`/pay/:token`, `/portal/:token`) are unchanged.
+Reference screenshots of the real Cerbo screens and the design notes live in
+`docs/cerbo-ui-reference/`; screenshots of this app in `docs/screenshots/`.

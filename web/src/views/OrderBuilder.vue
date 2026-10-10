@@ -27,7 +27,7 @@ const draft = useOrderDraftStore();
 // Signed in through the demo chart? Offer the way back to that patient's chart.
 const login = useLoginStore();
 const chartPath = computed(() =>
-  login.isDoctor && draft.order ? `/experimental-chart?patient=${draft.order.patient.id}` : null,
+  login.isDoctor && draft.order ? `/chart?patient=${draft.order.patient.id}` : null,
 );
 
 const patients = ref<Patient[]>([]);

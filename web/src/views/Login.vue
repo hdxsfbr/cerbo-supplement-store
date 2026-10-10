@@ -17,7 +17,7 @@ function submit(): void {
   const a = login.signIn(email.value);
   if (!a) return;
   const next = typeof route.query.next === 'string' ? route.query.next : null;
-  void router.push(a.role === 'doctor' ? (next ?? '/experimental-chart') : '/portal');
+  void router.push(a.role === 'doctor' ? (next ?? '/chart') : '/portal');
 }
 </script>
 

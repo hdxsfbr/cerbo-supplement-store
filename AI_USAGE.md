@@ -371,3 +371,12 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   replica now serves the token route, checkout renders inside its shell under Invoices &
   Payment, and the old page, its route surface and its CSS are gone (DECISIONS #18).
 - The e2e script and demo recorder pay from the portal's Secure Messages / Make Payment now.
+
+### 2026-10-09 — Release prep: rename, doc pass, production build check
+
+- `/experimental-chart` became `/chart` (the doctor's landing page) with redirects from the old
+  paths; files, assets and screenshots renamed; "experimental" wording removed from code and docs.
+- Doc pass against the code: README demo path and screen guide rewritten for the sign-in, chart,
+  list/request flow and the Cerbo-style portal; test counts corrected; the no-credentials
+  sign-in called out in README and ARCHITECTURE; request flows and "where things live" updated.
+- The production image was built and driven with the e2e script before merging to `main`.

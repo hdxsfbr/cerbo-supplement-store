@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// EXPERIMENTAL — a replica of Cerbo's patient chart (docs/cerbo-ui-reference/) with the
+// The patient chart — a replica of Cerbo's (docs/cerbo-ui-reference/) with the
 // supplement store embedded where Cerbo keeps its Rx flow. The Supplements tab is the
 // patient's supplement LIST (clinical: what they take); orders are started from it and
 // completed on the order page. Patient requests from the portal land here too. DECISIONS #17.
 // Only the Supplements tab and its modals are wired to the API; the rest of the chart is static.
-// Route: /experimental-chart (under the shared header, components/CerboNav.vue).
+// Route: /chart (under the shared header, components/CerboNav.vue).
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, ApiError } from '../api';
@@ -315,7 +315,7 @@ const ledger = [
       <!-- ── Column 1: patient rail ─────────────────────────────────────── -->
       <div class="xc-col xc-col--rail">
         <div class="xc-photo">
-          <img v-if="patient?.id === 1" src="/experimental/zeus.jpg" alt="" />
+          <img v-if="patient?.id === 1" src="/chart/zeus.jpg" alt="" />
           <div v-else class="xc-photo__blank">{{ firstName.slice(0, 1) }}</div>
           <div class="xc-photo__icons"><span></span><span>&#9998;</span></div>
           <div class="xc-photo__cap">
@@ -384,10 +384,9 @@ const ledger = [
           <div class="xc-panel__body xc-rel" style="font-size: 13px">
             <ul>
               <li v-for="(o, i) in others" :key="o.id">
-                <RouterLink
-                  :to="{ name: 'experimental-chart', query: { patient: String(o.id) } }"
-                  >{{ o.name }}</RouterLink
-                >
+                <RouterLink :to="{ name: 'chart', query: { patient: String(o.id) } }">{{
+                  o.name
+                }}</RouterLink>
                 - <i>{{ i === 0 ? 'emer. contact' : 'family' }}</i> &#128101;
               </li>
               <li v-if="others.length === 0"><i>No relationships on file</i></li>
