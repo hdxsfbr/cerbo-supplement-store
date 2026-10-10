@@ -278,7 +278,9 @@ function fmtDate(iso: string | null): string {
                   <div v-if="!line.price_valid" class="ob__field-error">
                     Enter a dollar amount (e.g. 32.00)
                   </div>
-                  <span v-else class="cerbo-money">{{ formatCents(line.unit_price_cents) }}</span>
+                  <span v-else-if="draft.locked" class="cerbo-money">{{
+                    formatCents(line.unit_price_cents)
+                  }}</span>
                 </td>
                 <td class="cerbo-table__num">
                   <input
