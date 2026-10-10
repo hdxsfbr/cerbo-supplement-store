@@ -59,12 +59,6 @@ const routes: RouteRecordRaw[] = [
     meta: { surface: 'bare', title: 'Pay for your supplements' },
   },
   {
-    path: '/inventory',
-    name: 'inventory',
-    component: () => import('./views/Inventory.vue'),
-    meta: { surface: 'provider', title: 'Inventory' },
-  },
-  {
     // The patient chart (replica of Cerbo's) with the store's Supplements tab; the doctor's
     // landing page.
     path: '/chart',

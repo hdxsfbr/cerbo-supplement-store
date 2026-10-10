@@ -21,7 +21,7 @@ JOIN providers p ON p.name = v.provider_name
 ORDER BY v.ord;
 
 --                                                     COGS    price   margin  stock
-INSERT INTO supplements (name, sku, unit_cogs_cents, default_price_cents, inventory_count) VALUES
+INSERT INTO supplements (name, sku, unit_cogs_cents, default_price_cents, inventory_count) VALUES -- inventory_count dropped by 009
   ('Omega-3 Fish Oil 1000 mg (120 softgels)', 'OMG-1000-120', 1850,  3200,   /* 42% */ 120),
   ('Vitamin D3 5000 IU (90 caps)',            'VD3-5000-090',  400,   850,   /* 53% */ 200),
   ('Magnesium Glycinate 400 mg (120 caps)',   'MAG-GLY-120',   950,  1900,   /* 50% */ 150),

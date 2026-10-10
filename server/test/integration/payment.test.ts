@@ -98,10 +98,6 @@ describe('pay → payment + ledger in one transaction (FR-004, FR-005, FR-009)',
       { supplement_id: 1, quantity: 2, unit_price_cents: 3200 },
       { supplement_id: 2, quantity: 1, unit_price_cents: 300 },
     ]);
-    const before = await ctx.sql<
-      { inventory_count: number }[]
-    >`SELECT inventory_count FROM supplements WHERE id = 1`;
-
     const res = await api(ctx.app, 'POST', `/api/checkout/${order.token}/pay`, {
       body: { idempotency_key: KEY },
     });
@@ -125,12 +121,6 @@ describe('pay → payment + ledger in one transaction (FR-004, FR-005, FR-009)',
 
     const payments = await ctx.sql`SELECT id FROM payments WHERE order_id = ${order.id}`;
     expect(payments).toHaveLength(1);
-
-    // DECISIONS #12: inventory moved with the money
-    const after = await ctx.sql<
-      { inventory_count: number }[]
-    >`SELECT inventory_count FROM supplements WHERE id = 1`;
-    expect(after[0]!.inventory_count).toBe(before[0]!.inventory_count - 2);
   });
 
   it('replay with the same idempotency key → 200, same payment, still one payment row + 3 entries', async () => {
@@ -356,16 +346,8 @@ describe('the database, not the app, is the last line of defence (quickstart sce
 });
 
 describe('payment gateway seam failures (HDX-88)', () => {
-  async function stock(id: number) {
-    const [r] = await ctx.sql<
-      { inventory_count: number }[]
-    >`SELECT inventory_count FROM supplements WHERE id = ${id}`;
-    return r!.inventory_count;
-  }
-
   it('a decline → 402 payment_declined; nothing written, order still payable, one gateway call', async () => {
     const o = await sentOrder([{ supplement_id: 6, quantity: 2, unit_price_cents: 2400 }]);
-    const before = await stock(6);
     ctx.gateway.calls = [];
     ctx.gateway.mode = 'decline';
     const res = await api(ctx.app, 'POST', `/api/checkout/${o.token}/pay`, {
@@ -381,7 +363,6 @@ describe('payment gateway seam failures (HDX-88)', () => {
              (SELECT count(*)::int FROM ledger_entries WHERE order_id = ${o.id}) AS entries
       FROM orders WHERE id = ${o.id}`;
     expect(row).toEqual({ status: 'awaiting_payment', payments: 0, entries: 0 });
-    expect(await stock(6)).toBe(before);
 
     // Retrying after the decline (same key) charges again and succeeds.
     const retry = await api(ctx.app, 'POST', `/api/checkout/${o.token}/pay`, {
@@ -389,7 +370,6 @@ describe('payment gateway seam failures (HDX-88)', () => {
     });
     expect(retry.status).toBe(200);
     expect(ctx.gateway.calls).toHaveLength(2);
-    expect(await stock(6)).toBe(before - 2);
   });
 
   it('a gateway outage → 502 payment_gateway_error; nothing written', async () => {
@@ -434,12 +414,8 @@ describe('payment gateway seam failures (HDX-88)', () => {
 });
 
 describe('concurrency', () => {
-  it('5 simultaneous pays with the same key → all 200, one payment row, one charge, one decrement', async () => {
+  it('5 simultaneous pays with the same key → all 200, one payment row, one charge', async () => {
     const o = await sentOrder([{ supplement_id: 6, quantity: 1, unit_price_cents: 2400 }]);
-    const [b] = await ctx.sql<
-      { inventory_count: number }[]
-    >`SELECT inventory_count FROM supplements WHERE id = 6`;
-    const stock6Before = b!.inventory_count;
     const key = `ck_race_same_${o.id}_xx`;
     const results = await Promise.all(
       Array.from({ length: 5 }, () =>
@@ -451,10 +427,6 @@ describe('concurrency', () => {
     const rows = await ctx.sql`SELECT id FROM payments WHERE order_id = ${o.id}`;
     expect(rows).toHaveLength(1);
     expect(ctx.gateway.calls.filter((c) => c.orderId === o.id)).toHaveLength(1); // charged once
-    const [s6] = await ctx.sql<
-      { inventory_count: number }[]
-    >`SELECT inventory_count FROM supplements WHERE id = 6`;
-    expect(s6!.inventory_count).toBe(stock6Before - 1); // decremented once
   });
 
   it('5 simultaneous pays with different keys → exactly one 200, the rest 409 already_paid', async () => {

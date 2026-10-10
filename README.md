@@ -26,10 +26,6 @@ integer cents, in an append-only ledger whose invariants are enforced by the dat
 |---|---|
 | ![audit](docs/screenshots/order-audit.png) | ![dashboard](docs/screenshots/dashboard.png) |
 
-| Practice: inventory | |
-|---|---|
-| ![inventory](docs/screenshots/inventory.png) | |
-
 ## Run it
 
 Prerequisites: Docker with Compose. (Node 22 + npm only if you want tests/lint outside Docker.)
@@ -63,9 +59,8 @@ EHR login, see below).
    first, then *4242…*. Double-click Pay. Refresh. One payment; the receipt says "Visa ending 4242".
 5. **Audit** (`/orders/:id/audit`) — the ledger: three entries, their memos, Σ = amount paid,
    and the fee computation (`75 bps of 6600¢ = 49.5¢ → 50¢ (half-up)`).
-6. **Orders / Sales report / Inventory** (Supplements menu) — the order list with filters and
-   sorting; GMV, margin, COGS and fees as sums over the ledger, per provider; practice-wide stock
-   with inline edit and low/oversold flags.
+6. **Orders / Sales report** (Supplements menu) — the order list with filters and sorting; GMV,
+   margin, COGS and fees as sums over the ledger, per provider.
 
 The patient side of the loop: sign in as **zeus@olympus.example**, open *My Supplements*, add
 something you take, tick rows and **Request an Order**. Back on the chart the request shows as
@@ -143,10 +138,10 @@ receipt; a different key on a paid order gets `409 already_paid`; `payments.orde
 ### The payment boundary, honestly
 
 What ships: `POST /checkout/:token/pay` locks the order row, calls the **fake** gateway, and in
-the same transaction writes the payment, flips the status, inserts the three ledger entries, and
-decrements stock. The deferred trigger re-checks the split at commit. A decline is a 402 and an
-outage a 502, with nothing written either way; replays and conflicting keys never reach the
-gateway; five concurrent pays produce one charge and one stock decrement (all tested).
+the same transaction writes the payment, flips the status and inserts the three ledger entries.
+The deferred trigger re-checks the split at commit. A decline is a 402 and an outage a 502, with
+nothing written either way; replays and conflicting keys never reach the gateway; five concurrent
+pays produce one charge (all tested).
 
 What this does **not** prove: anything about a real processor. The fake is synchronous and
 cannot fail between "charged" and "recorded", so calling it inside the transaction is correct
@@ -172,7 +167,7 @@ server/src/money/split.ts     the split, pure integer math
 server/src/seams/             identity · payment · notifier (interfaces + fakes)
 server/src/routes/            catalog · patients · orders · checkout · dashboard · portal · supplementList
 server/src/supplements/       the patient's supplement list + order requests (shared loaders)
-web/src/views/                Login · PatientChart · Orders · OrderBuilder · OrderAudit · Dashboard · Inventory · PatientPortal · Checkout
+web/src/views/                Login · PatientChart · Orders · OrderBuilder · OrderAudit · Dashboard · PatientPortal · Checkout
 web/src/components/           CerboNav (provider header) · PortalShell (patient frame) · SupplementSearch · panels/inputs
 ```
 
@@ -183,7 +178,7 @@ web/src/components/           CerboNav (provider header) · PortalShell (patient
 | **Identity / EHR** | A demo sign-in (`/`, no password) sets the acting provider, sent as an `x-acting-provider` header; a patient sign-in exchanges the seeded patient id for that patient's portal token (`POST /api/portal/session`). Patient links are capability tokens per order (`/pay/<token>`) and per patient (`/portal/<token>`). **Anyone can sign in as anyone**: this is the EHR login stand-in, not authentication. | `server/src/seams/identity.ts` → `IdentityProvider` | Read the EHR session for the provider; back the patient links with the portal session. Route code calls the same three methods; session plumbing (cookies, middleware) is new code around them. |
 | **Payment** | A card form in the browser runs a *fake tokenizer* (`web/src/card.ts`): the number never leaves the page; the server gets `fake_tok_<brand>_<last4>_<outcome>`. `FakePaymentGateway` honours Stripe-style test cards (4242… succeeds, 4000 0000 0000 0002 declines → 402, …0119 → 502, nothing written). Brand + last4 are stored for the receipt. | `server/src/seams/payment.ts` → `PaymentGateway` | Stripe Elements (or similar) tokenizes in an iframe; PaymentIntent-style flow with a pending row, the network call outside the DB lock, and webhook reconciliation — see "The payment boundary, honestly" above. The seam interface stays; the route orchestration changes. The DB still refuses a second payment per order and re-asserts the split at commit. |
 | **Messaging / patient portal** | `PortalNotifier` writes what Cerbo would send — a secure portal message and an email nudge — to a `notifications` table; the patient portal (`/portal/<token>`, a replica of Cerbo's) reads them back with the patient's invoices, list and requests, and checkout (`/pay/<token>`) renders inside it under Invoices & Payment. Nothing is actually sent. Notification is best-effort *after* the send commits: a failure returns `notified: false`, never a failed send. | `server/src/seams/notifier.ts` → `Notifier` | Cerbo's **Secure Messages** (portal queue) + **Patient Emails** APIs, from an outbox row written inside the send transaction and delivered asynchronously with retries; the portal page would be Cerbo's own portal, where patients already view and pay bills. |
-| **Shipping / fulfilment** | Not modelled. Inventory is a count that decrements at payment and may go negative (flagged). | — | Reservation at send, release on expiry, fulfilment events. |
+| **Fulfilment** | The practice drop-ships (DECISIONS #19): the supplier's landed unit price, shipping included, is the COGS; stock is unlimited from the practice's point of view, so there is no inventory. Nothing is sent to a supplier here. | — | A supplier adapter that places the fulfilment order after payment and reports shipped/delivered as append-only events; a stocked-in-clinic mode per supplement if a practice keeps shelves. |
 | **Providers / patients / catalog** | Seeded by migration `003_seed.sql` (Greek-god demo patients, 8 supplements with COGS and default prices). | the migration | Synced from the EHR and a catalog service. |
 
 ## Assumptions and deliberate cuts
@@ -199,10 +194,13 @@ web/src/components/           CerboNav (provider header) · PortalShell (patient
   summing to the payment) and the one-payment-per-order model would both need redesign to admit
   a refund payment and its negative allocations. Deliberately out of scope.
 - No real auth, no catalog management UI, no search, no imagery, no tests for UI chrome.
-- Low-stock threshold is a constant (25); inventory is informational, not a sales blocker.
+- Sales tax is out of scope: catalog prices are treated as the amount the patient pays. In
+  production tax would be a pass-through ledger entry computed by a tax service behind a seam,
+  since supplement taxability varies by state.
 
-**What I'd do next with more time:** refunds as compensating entries; reservation-based
-inventory; a real payment gateway behind the existing seam with webhook reconciliation; per-item
+**What I'd do next with more time:** refunds as compensating entries; the supplier
+(fulfilment) seam with shipped/delivered events in the portal; a tax-service seam; a real payment
+gateway behind the existing seam with webhook reconciliation; per-item
 fee attribution reporting (keeping the order-level fee as the ledger truth); role separation at
 the DB (an app role without `DISABLE TRIGGER` rights, which a superuser compose role currently
 bypasses); Cerbo chart integration via their REST API so orders land in the patient record.
@@ -235,7 +233,7 @@ Deployed with the Railway CLI: `railway init` → `railway add --database postgr
 
 Every provider page renders under one Cerbo-style header (`web/src/components/CerboNav.vue`).
 Cerbo's own items are static; the **Supplements** menu is ours: Orders (list with status/patient
-filters and sortable columns), New order, Inventory, Sales report. Patient search appears on the
+filters and sortable columns), New order, Sales report. Patient search appears on the
 chart only, where a patient is in context. The user chip is the sign-out menu.
 
 - **Chart** (`/chart`, the doctor's landing page) — a replica of Cerbo's patient chart built from

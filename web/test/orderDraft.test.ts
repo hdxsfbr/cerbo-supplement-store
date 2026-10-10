@@ -35,7 +35,6 @@ const omega: Supplement = {
   sku: 'OMG',
   unit_cogs_cents: 1850,
   default_price_cents: 3200,
-  inventory_count: 10,
 };
 
 function view(

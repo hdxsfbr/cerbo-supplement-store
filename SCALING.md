@@ -51,8 +51,6 @@ Still one box, but the first design debts surface:
   Without this you cannot tell a slow Postgres from a slow processor.
 - **Rate limiting** on the two unauthenticated routes (`/checkout/:token/*`, `/portal/:token`) —
   tokens are unguessable, but enumeration attempts should be cheap to drop.
-- Inventory: 300 orders/day against a shared stock table is fine; the `UPDATE … inventory_count -=`
-  inside the pay transaction serialises on hot SKUs only momentarily.
 
 ### T3 — 1 000 providers, ~3 000 orders/day, ~10 req/s, ~3 M ledger rows/year
 This is where the **single-process, sum-on-read** shape stops being free:
@@ -79,9 +77,6 @@ The database becomes the thing to design around:
 - **Read replicas** for dashboard, audit and portal reads; writes (assemble, send, pay) stay on
   the primary. Only the pay path needs strict consistency; the dashboard tolerates seconds of lag
   if the UI says so.
-- **Hot-row contention on inventory**: 30 k decrements/day on ~8–50 SKUs is still < 1/s per SKU,
-  fine. At 10× that, move stock to a per-SKU ledger (append "−qty" rows, sum on read, roll up) —
-  the same append-only pattern as money.
 - **Idempotency keys** are client-generated UUIDs stored on `payments`; the unique index is the
   guard. At this size add a **TTL/cleanup** for abandoned checkout sessions and consider a
   dedicated `payment_attempts` table (also wanted for metrics).
@@ -90,7 +85,7 @@ The database becomes the thing to design around:
 - **Tenancy decision point** (see below): per-practice instances stop being operationally sane
   around here (10 000 deployments); a shared multi-tenant deployment with `practice_id` + RLS is
   the natural shape, with per-tenant rate limits and noisy-neighbour protection.
-- **Queue for side effects**: notifications, receipts, inventory alerts, analytics rollups all
+- **Queue for side effects**: notifications, receipts, supplier fulfilment orders, analytics rollups all
   leave the request path via the outbox → worker pattern introduced at T2.
 
 ### T5 — 100 000 providers, ~300 000 orders/day, ~1 000 req/s, ~330 M ledger rows/year
@@ -128,7 +123,7 @@ Whether that is one application routed by subdomain or an instance per practice 
 | Isolation | Strongest: blast radius and data residency per practice | Logical only; RLS + tests must prove it |
 | Cost at T1–T2 | Fine (tens of small instances) | Fine |
 | Cost at T3–T4 | Thousands of databases: migrations, backups, upgrades and monitoring become the product | One schema, one migration path, noisy-neighbour controls needed |
-| Catalog/inventory | Naturally per practice ("Cerbo holds the inventory" per practice warehouse?) | Needs a decision: shared catalog with per-practice pricing (DECISIONS #6 already puts price on the order line) |
+| Catalog | Naturally per practice | Needs a decision: shared catalog with per-practice pricing (DECISIONS #6 already puts price on the order line, not the catalog) |
 | Recommendation | Keep for pilots and for practices that require it | Default once past ~100 practices; the schema change is additive and the invariants are unchanged |
 
 A practical hybrid: a shared control plane (catalog, fee policy, platform reporting) and

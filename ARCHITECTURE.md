@@ -51,7 +51,7 @@ flowchart LR
     direction TB
     APP["app.ts<br/>error envelope · SQLSTATE→HTTP map<br/>serves web/dist in prod"]
     subgraph Routes["routes/"]
-      R1["catalog.ts<br/>GET /supplements · PATCH inventory"]
+      R1["catalog.ts<br/>GET /supplements"]
       R2["patients.ts<br/>GET /patients"]
       R3["orders.ts<br/>create · items · send · ledger · list"]
       R4["checkout.ts<br/>GET /checkout/:token · POST pay"]
@@ -113,10 +113,9 @@ an id from the client without that scoping.
 | Request | `POST /portal/:token/requests` → `POST /requests/:id/decline` or `POST /orders {request_id}` | request + items in one tx; never an order by itself | provider prices and sends; `order_requests.status` → fulfilled on send, declined with a portal message |
 | Assemble | `POST /orders` (optionally from list rows / a request), `PUT /orders/:id/items` | one tx: order + pre-filled lines; one tx per PUT: delete lines, insert lines; COGS snapshot taken by trigger | `order_items_guard` (draft only, snapshot), `orders_guard_insert` (patient ∈ provider); list rows must be the patient's and active |
 | Send | `POST /orders/:id/send` | one `UPDATE … WHERE status='draft'`; notifier runs after commit, best-effort | `orders_guard_transition` (≥1 line, total frozen); API answers 409 on repeat |
-| Pay | `POST /checkout/:token/pay` | one tx: `SELECT … FOR UPDATE`, gateway charge, payment row, status → paid, 3 ledger rows, stock decrement | deferred `assert_order_split()` at COMMIT; `payments.order_id UNIQUE`; row lock serialises races |
+| Pay | `POST /checkout/:token/pay` | one tx: `SELECT … FOR UPDATE`, gateway charge, payment row, status → paid, 3 ledger rows | deferred `assert_order_split()` at COMMIT; `payments.order_id UNIQUE`; row lock serialises races |
 | Audit | `GET /orders/:id/ledger` | read-only | 409 unless paid; reads the ledger, never recomputes |
 | Reporting | `GET /dashboard/summary` | one `REPEATABLE READ READ ONLY` tx, two reads | sums over `ledger_entries`, so tiles ≡ Σ audits; per provider |
-| Inventory | `GET /inventory`, `PATCH /supplements/:id/inventory` | read-only / single UPDATE | practice-wide (shared stock); `units_sold_mine` is the only provider-scoped field |
 | Portal | `GET /portal/:token`, `POST /portal/:token/supplements` | read-only / single insert | token → patient; messages, invoices (items, card), list, requests and a names-only catalog, all scoped to that patient; never COGS, margin or fee |
 
 ## The money path (US2: patient pays)
@@ -153,7 +152,6 @@ sequenceDiagram
     API->>DB: INSERT payments (order_id UNIQUE)
     API->>DB: UPDATE orders SET status='paid'
     API->>DB: INSERT ledger_entries ×3 (cogs, provider_margin, platform_fee + memos)
-    API->>DB: UPDATE supplements.inventory_count −= qty
     API->>DB: COMMIT
     Note over DB: deferred constraint trigger assert_order_split():<br/>3 entries · Σ = total_cents · one payment of equal amount ·<br/>COGS = Σ snapshot · fee = ⌊(total×75+5000)/10000⌋ — else ROLLBACK
     DB-->>API: committed
@@ -174,7 +172,6 @@ plus `notifications` (portal messages / email nudges). Every money column is `BI
 | What the patient owes / paid | `orders.total_cents` (frozen at send), `payments.amount_cents` | builder preview (client mirror), checkout view |
 | Where each cent went | `ledger_entries` (append-only) | audit view, dashboard sums, per-order rows in `GET /orders/:id` |
 | Cost basis of a sold unit | `order_items.unit_cogs_cents` (snapshot) | the catalog's `unit_cogs_cents` is *current* cost, not history |
-| Stock | `supplements.inventory_count` (practice-wide; its own screen, not part of the per-provider report) | `units_sold` / `units_sold_mine` are recomputed from paid order lines |
 
 **Consistency model.** All writes are single-transaction and the database holds the invariants:
 
@@ -187,8 +184,7 @@ plus `notifications` (portal messages / email nudges). Every money column is `BI
   locks the order row so concurrent replays serialise and return the original receipt.
 - *Reads*: dashboard reads share one snapshot; everything else is single-statement.
 
-What is **not** guaranteed and why: stock is not reserved at send (an order can oversell; flagged,
-not blocked — DECISIONS #12); notifications are best-effort after commit (an outbox would make
+What is **not** guaranteed and why: notifications are best-effort after commit (an outbox would make
 them transactional — HDX-89); the gateway call sits inside the pay transaction because the fake
 is synchronous (a real processor moves it out — README → "The payment boundary, honestly").
 

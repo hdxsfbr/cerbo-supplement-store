@@ -1,1 +1,3 @@
-The Supplements menu holds the rest. Orders, with status filters and sortable columns. The sales report sums the ledger directly, so the tiles always reconcile with the per-order audits. And inventory, which moves when an order is paid, and is flagged when it goes negative.
+The Supplements menu holds the rest. Orders, with status filters and sortable columns. And the sales report, which sums the ledger directly, so the tiles always reconcile with the per-order audits.
+
+Fulfilment is drop-shipped: the supplier's landed price, shipping included, is the cost of goods. So there is no inventory to keep, and nothing for the practice to pack.

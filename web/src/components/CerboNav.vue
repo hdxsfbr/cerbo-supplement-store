@@ -18,7 +18,6 @@ const initials = computed(() => (login.account?.role === 'doctor' ? login.accoun
 const STORE = [
   { label: 'Orders', to: '/orders', match: /^\/orders(?!\/new)/ },
   { label: 'New order', to: '/orders/new', match: /^\/orders\/new/ },
-  { label: 'Inventory', to: '/inventory', match: /^\/inventory/ },
   { label: 'Sales report', to: '/dashboard', match: /^\/dashboard/ },
 ];
 const storeActive = computed(() => STORE.some((s) => s.match.test(route.path)));

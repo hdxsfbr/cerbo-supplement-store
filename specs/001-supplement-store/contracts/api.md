@@ -7,12 +7,11 @@ Errors: `{ "error": { "code": string, "message": string } }` with appropriate 4x
 (stand-in for the EHR session; see `server/src/seams/identity.ts`). Patient checkout endpoints
 authenticate by capability token in the URL — no header.
 
-## Provider — catalog & inventory
+## Provider — catalog
 
 | Method & Path | Purpose | Notes |
 |---|---|---|
-| `GET /api/supplements` | List catalog | includes `unit_cogs_cents`, `default_price_cents`, `inventory_count` |
-| `PATCH /api/supplements/:id/inventory` | Set inventory count | body `{ "inventory_count": int }` (FR-008) |
+| `GET /api/supplements` | List catalog | includes `unit_cogs_cents`, `default_price_cents` (COGS = drop-ship supplier's landed price, DECISIONS #19) |
 
 ## Provider — patients
 
@@ -42,7 +41,7 @@ authenticate by capability token in the URL — no header.
 
 | Method & Path | Purpose | Notes |
 |---|---|---|
-| `GET /api/dashboard/summary` | Aggregates for acting provider | `{ orders_paid, gross_cents, cogs_cents, margin_cents, fees_cents }` — computed by summing ledger_entries so reconciliation is structural (SC-004); plus low/negative-inventory flags |
+| `GET /api/dashboard/summary` | Aggregates for acting provider | `{ orders_paid, gross_cents, cogs_cents, margin_cents, fees_cents }` — computed by summing ledger_entries so reconciliation is structural (SC-004) |
 
 ## Contract invariants (tested in integration)
 

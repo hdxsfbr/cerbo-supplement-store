@@ -761,10 +761,7 @@ const ledger = [
                 <div v-if="matches.length === 0" class="xc-pick__hint">
                   No matches in the practice catalog.
                 </div>
-                <div v-else class="xc-pick__hint">
-                  Matches are from the practice catalog. Products not listed here can be added under
-                  Inventory.
-                </div>
+                <div v-else class="xc-pick__hint">Matches are from the practice catalog.</div>
               </div>
             </div>
             <div class="xc-pick__help">
@@ -783,7 +780,6 @@ const ledger = [
             <b>Default price:</b> {{ formatCents(hovered.default_price_cents) }}<br />
             <b>Your cost (COGS):</b> {{ formatCents(hovered.unit_cogs_cents) }}<br />
             <b>Margin at default:</b> {{ marginAtDefault(hovered) }} before platform fee<br />
-            <b>On hand:</b> {{ hovered.inventory_count }}<br />
             <b v-if="onList(hovered)" class="xc-card__draft">Already on this patient's list</b>
           </div>
         </div>

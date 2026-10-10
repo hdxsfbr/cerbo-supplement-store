@@ -256,3 +256,24 @@ styles are deleted.
 **Trade-off:** The token still grants the whole portal, not just one invoice, exactly as before;
 nothing about the identity seam changed. Checkout keeps its own card styles inside the shell
 rather than being restyled to Cerbo's billing widgets, which is a cosmetic follow-up.
+
+## 19. The practice drop-ships; inventory is gone
+
+**Date:** 2026-10-10
+**Context:** The slice modelled an in-clinic shelf: an inventory count per supplement, decremented
+at payment, with low/oversold flags and its own screen. Andre's read, and the comparables
+(Fullscript, the former Wellevate), is that most functional-medicine clinics will not keep stock,
+pack boxes or manage vendors; they recommend, the patient pays, a supplier ships. Shipping
+charges and sales tax also surfaced as open questions.
+**Decision:** The practice sells through a drop-shipping supplier. COGS is the supplier's landed
+unit price, fulfilment and shipping included, so the patient pays sticker price and the 75 bps
+fee applies to the whole order total. Stock is unlimited from the practice's point of view:
+migration 009 drops `inventory_count`, and the inventory endpoints, page, menu entry, "on hand"
+hints and tests are removed rather than left as dead weight. Sales tax is out of scope and
+stated as such; in production it would be a pass-through ledger entry computed by a tax service
+behind a seam, because supplement taxability varies by state.
+**Trade-off:** In-office dispensers (patient leaves the visit with the bottle) are not served
+by this model; a per-supplement "stocked in clinic" mode could bring the count back later as
+an opt-in. Fulfilment itself (sending the order to the supplier, shipped/delivered events in
+the portal) is the natural next seam and is listed under "what I'd do next". The money rules
+and the ledger invariants are untouched by this change.

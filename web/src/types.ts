@@ -8,7 +8,6 @@ export interface Supplement {
   sku: string | null;
   unit_cogs_cents: number;
   default_price_cents: number;
-  inventory_count: number;
 }
 
 export interface Patient {
@@ -253,15 +252,4 @@ export interface DashboardSummary {
     margin_cents: number;
     fee_cents: number;
   }[];
-}
-
-export interface InventoryView {
-  provider: { id: number; name: string };
-  inventory: (Supplement & {
-    units_sold: number;
-    units_sold_mine: number;
-    low: boolean;
-    negative: boolean;
-  })[];
-  low_stock_threshold: number;
 }

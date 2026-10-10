@@ -215,7 +215,7 @@ async function resetZeus() {
   }
   log('reset: zeus list + requests cleared');
 }
-await resetZeus();
+if (want('s02_chart')) await resetZeus();
 
 // ─────────────────────────────────────────────────────────────────────────────────────────
 // Static slides (s01, s09) are built from PNGs by mux.sh; screencast emits no frames on a still page.
@@ -292,10 +292,14 @@ await scene('s03_order', async () => {
   await hoverEl('.ob__notes', 0.1, 0.2, 700);
 });
 
+const want = (id) => !ONLY || ONLY.includes(id);
+
 // s04 — patient: sign in, pay from Secure Messages (declined, then good), request a refill
-await clickOn('button.xc-nav__user', { ms: 500 });
-await clickOn('.xc-menu__item::-p-text(Sign out)', { ms: 500 });
-await page.waitForSelector('#login-email');
+if (want('s04_portal_pay')) {
+  await clickOn('button.xc-nav__user', { ms: 500 });
+  await clickOn('.xc-menu__item::-p-text(Sign out)', { ms: 500 });
+  await page.waitForSelector('#login-email');
+}
 await scene('s04_portal_pay', async () => {
   await signIn('zeus@olympus.example');
   await page.waitForSelector('.xp-side__hi');
@@ -347,12 +351,14 @@ await scene('s04_portal_pay', async () => {
 });
 
 // s05 — provider: the request on the chart → create order → send
-await clickOn('.xp-side__out', { ms: 500 });
-await page.waitForSelector('#login-email');
-await signIn('welby@demo.cer.bo');
-await page.waitForSelector('select[aria-label="Search patients"]');
-await page.select('select[aria-label="Search patients"]', '1');
-await page.waitForFunction(() => document.body.innerText.includes('Unreviewed for Zeus King'));
+if (want('s05_request')) {
+  await clickOn('.xp-side__out', { ms: 500 });
+  await page.waitForSelector('#login-email');
+  await signIn('welby@demo.cer.bo');
+  await page.waitForSelector('select[aria-label="Search patients"]');
+  await page.select('select[aria-label="Search patients"]', '1');
+  await page.waitForFunction(() => document.body.innerText.includes('Unreviewed for Zeus King'));
+}
 await scene('s05_request', async () => {
   await sleep(600);
   await clickOn('span.xc-tab::-p-text(Supplements)', { ms: 600 });
@@ -368,7 +374,7 @@ await scene('s05_request', async () => {
 });
 
 // s06 — audit of the first (paid) order
-await goto(`${BASE}/orders/${firstOrderId}/audit`);
+if (want('s06_audit')) await goto(`${BASE}/orders/${firstOrderId}/audit`);
 await scene('s06_audit', async () => {
   await sleep(2500);
   const rows = await page.$$('.audit__ledger tbody tr');
@@ -388,8 +394,15 @@ await scene('s06_audit', async () => {
   await hoverEl('.audit__memo', 0.4, 0.5, 900);
 });
 
-// s07 — Orders list → Sales report → Inventory (via the Supplements menu)
-await goto(`${BASE}/orders`);
+// s07 — Orders list → Sales report (via the Supplements menu)
+if (want('s07_reporting')) {
+  if (ONLY) {
+    // re-recording this scene alone: establish the provider session first
+    await signIn('welby@demo.cer.bo');
+    await page.waitForSelector('button.xc-nav__user');
+  }
+  await goto(`${BASE}/orders`);
+}
 await scene('s07_reporting', async () => {
   await sleep(800);
   await clickOn('.ol__tab::-p-text(Paid)', { ms: 700 });
@@ -404,16 +417,12 @@ await scene('s07_reporting', async () => {
     await sleep(250);
   }
   await sleep(1000);
-  await goto(`${BASE}/inventory`);
-  await page.waitForFunction(() => document.body.innerText.includes('Units on hand'));
-  await installCursor();
-  await hoverEl('.cerbo-table tbody tr', 0.85, 0.5, 800);
-  await sleep(900);
-  await hoverEl('.cerbo-chip--warn', 0.5, 0.5, 800);
+  await sleep(2500);
+  await hoverEl('.dash__tiles .cerbo-panel', 0.5, 0.6, 600);
 });
 
 // s08 — under the hood slide
-await goto(slide('s08_under_hood.html'));
+if (want('s08_under_hood')) await goto(slide('s08_under_hood.html'));
 await scene('s08_under_hood', async () => {
   await moveTo(470, 520, 600);
   await sleep(8500);

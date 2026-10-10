@@ -387,3 +387,14 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   sign-in check, not by the e2e script, which only covered the doctor and token paths. Fixed in
   v1.1.1; the e2e script now signs in as a patient too, and the pre-merge gate runs it against
   the production image. Lesson recorded: never rename with a blanket replace over route tables.
+
+### 2026-10-10 — Drop-shipping replaces inventory
+
+- Andre questioned whether clinics would run shelves and vendors at all; the agent researched
+  how practitioner dispensaries and marketplaces treat shipping and fees (Fullscript: flat
+  shipping with a free threshold, margin on product only; Amazon: referral fee on shipping too;
+  Stripe app fees: platform's choice) and recommended the drop-ship framing. Andre decided:
+  drop-ship, unlimited stock, inventory removed (DECISIONS #19).
+- Removed end to end: migration 009 drops the column; the decrement at payment, the inventory
+  routes, page, menu entry, "on hand" hints, types and their tests are gone. The demo narration
+  and recording for the reporting scene were redone to match.

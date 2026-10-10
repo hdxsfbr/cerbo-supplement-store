@@ -1,5 +1,5 @@
 // US3 integration (T022): dashboard aggregates reconcile with per-order ledgers (SC-004,
-// contract invariant 5); inventory edits persist and sales move stock.
+// contract invariant 5).
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { api, createTestContext, type TestContext } from './helpers.js';
@@ -44,8 +44,6 @@ describe('dashboard summary (T022)', () => {
       fees_cents: 0,
       paid_orders: [],
     });
-    const inv = await api(ctx.app, 'GET', '/api/inventory', { provider: WELBY });
-    expect(inv.body.inventory).toHaveLength(8);
   });
 
   it('aggregates equal the sum over each paid order’s ledger (contract invariant 5)', async () => {
@@ -93,24 +91,6 @@ describe('dashboard summary (T022)', () => {
     const anderson = await api(ctx.app, 'GET', '/api/dashboard/summary', { provider: ANDERSON });
     expect(anderson.body).toMatchObject({ orders_paid: 1, gross_cents: 4500 });
   });
-
-  it('inventory reflects sales (units_sold, decremented counts) and flags low/negative stock', async () => {
-    const res = await api(ctx.app, 'GET', '/api/inventory', { provider: WELBY });
-    const omega = res.body.inventory.find((s: { sku: string }) => s.sku === 'OMG-1000-120');
-    expect(omega).toMatchObject({
-      units_sold: 2,
-      units_sold_mine: 2,
-      inventory_count: 118,
-      low: false,
-      negative: false,
-    });
-    // the other provider sees the shared stock and practice-wide sales, but 0 sold by them
-    const anderson = await api(ctx.app, 'GET', '/api/inventory', { provider: ANDERSON });
-    const omegaA = anderson.body.inventory.find((s: { sku: string }) => s.sku === 'OMG-1000-120');
-    expect(omegaA).toMatchObject({ units_sold: 2, units_sold_mine: 0, inventory_count: 118 });
-    const adrenal = res.body.inventory.find((s: { sku: string }) => s.sku === 'ADR-SUP-120'); // seeded at 20
-    expect(adrenal).toMatchObject({ inventory_count: 20, low: true, negative: false });
-  });
 });
 
 describe('consistent snapshot (HDX-86)', () => {
@@ -157,44 +137,5 @@ describe('consistent snapshot (HDX-86)', () => {
         0,
       ),
     ).toBe(after.body.gross_cents);
-  });
-});
-
-describe('inventory PATCH (FR-008)', () => {
-  it('sets an absolute count and persists', async () => {
-    const res = await api(ctx.app, 'PATCH', '/api/supplements/1/inventory', {
-      provider: WELBY,
-      body: { inventory_count: 5 },
-    });
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ id: 1, inventory_count: 5 });
-    const list = await api(ctx.app, 'GET', '/api/supplements', { provider: WELBY });
-    expect(list.body.supplements.find((s: { id: number }) => s.id === 1).inventory_count).toBe(5);
-  });
-
-  it('a sale can take stock below zero; the dashboard flags it', async () => {
-    await paidOrder(WELBY, 1, [{ supplement_id: 1, quantity: 6, unit_price_cents: 3200 }]);
-    const res = await api(ctx.app, 'GET', '/api/inventory', { provider: WELBY });
-    const omega = res.body.inventory.find((s: { id: number }) => s.id === 1);
-    expect(omega).toMatchObject({ inventory_count: -1, negative: true, low: false });
-  });
-
-  it('rejects non-integers and unknown supplements', async () => {
-    expect(
-      (
-        await api(ctx.app, 'PATCH', '/api/supplements/1/inventory', {
-          provider: WELBY,
-          body: { inventory_count: 1.5 },
-        })
-      ).status,
-    ).toBe(400);
-    expect(
-      (
-        await api(ctx.app, 'PATCH', '/api/supplements/999/inventory', {
-          provider: WELBY,
-          body: { inventory_count: 1 },
-        })
-      ).status,
-    ).toBe(404);
   });
 });

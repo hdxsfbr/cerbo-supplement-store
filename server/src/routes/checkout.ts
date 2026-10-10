@@ -1,7 +1,7 @@
 // Patient checkout by capability token (identity seam) and the pay transaction (US2, T017).
 //
 // POST /pay is the money path. One database transaction does all of:
-//   payment row  →  order status 'paid'  →  three ledger entries  →  inventory decrement
+//   payment row  →  order status 'paid'  →  three ledger entries
 // and the deferred constraint trigger (002_integrity.sql §2) re-checks the whole split at
 // COMMIT. If anything disagrees — sum, fee, COGS, payment amount — the transaction rolls back
 // and nothing is recorded. Idempotency: the order row is locked FOR UPDATE, so a replay with
@@ -179,11 +179,6 @@ export async function checkoutRoutes(app: FastifyInstance): Promise<void> {
           memo: split.memos[entry_type],
         })),
       )}`;
-
-      // DECISIONS #12: stock moves when money moves. May go negative (flagged on the dashboard).
-      await tx`
-        UPDATE supplements s SET inventory_count = s.inventory_count - oi.quantity
-        FROM order_items oi WHERE oi.order_id = ${lock.id} AND oi.supplement_id = s.id`;
 
       return { replay: false as const, orderId: lock.id, payment };
     });

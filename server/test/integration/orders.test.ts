@@ -25,7 +25,6 @@ describe('catalog & patients (T011)', () => {
     expect(omega).toMatchObject({
       unit_cogs_cents: 1850,
       default_price_cents: 3200,
-      inventory_count: 120,
     });
   });
 

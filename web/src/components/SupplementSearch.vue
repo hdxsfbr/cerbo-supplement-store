@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Typeahead over the practice catalog — the same interaction as the chart's "+ Add Supplement"
 // picker: type to filter by name or SKU, arrow keys / hover to highlight, Enter or click to pick.
-// The highlighted item shows price, COGS, margin at default and stock (provider surface only).
+// The highlighted item shows price, COGS and margin at default (provider surface only).
 import { computed, ref, watch } from 'vue';
 import { formatBps, formatCents, marginPercentBps } from '../money';
 import type { Supplement } from '../types';
@@ -88,7 +88,6 @@ function onBlur(): void {
         <div><b>Default price:</b> {{ formatCents(highlighted.default_price_cents) }}</div>
         <div><b>Your cost (COGS):</b> {{ formatCents(highlighted.unit_cogs_cents) }}</div>
         <div><b>Margin at default:</b> {{ marginAtDefault(highlighted) }} before platform fee</div>
-        <div><b>On hand:</b> {{ highlighted.inventory_count }}</div>
       </div>
     </div>
   </div>
