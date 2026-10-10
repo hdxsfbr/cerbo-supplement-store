@@ -547,7 +547,7 @@ function fmtDate(iso: string | null): string {
 .ob__send-btn {
   width: 100%;
 }
-.ob__link-url {
+.ob__link {
   margin-top: 12px;
   border-top: 1px solid var(--cerbo-panel-border);
   padding-top: 8px;
