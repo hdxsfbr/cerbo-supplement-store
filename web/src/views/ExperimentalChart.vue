@@ -40,6 +40,11 @@ async function loadChart(): Promise<void> {
     catalog.value = cat.supplements;
     const wanted = Number(route.query.patient);
     patient.value = pts.patients.find((x) => x.id === wanted) ?? pts.patients[0] ?? null;
+    // The URL is the source of truth for the patient in context (the header mirrors it), so a
+    // defaulted patient is written back; the watcher below ignores this no-op change.
+    if (patient.value && patient.value.id !== wanted) {
+      await router.replace({ query: { ...route.query, patient: String(patient.value.id) } });
+    }
     others.value = pts.patients.filter((x) => x.id !== patient.value?.id);
     modal.value = null;
     tab.value = route.query.tab === 'supps' ? 'supps' : 'meds';
@@ -54,7 +59,9 @@ async function loadChart(): Promise<void> {
 onMounted(loadChart);
 watch(
   () => route.query.patient,
-  () => void loadChart(),
+  (q) => {
+    if (Number(q) !== patient.value?.id) void loadChart();
+  },
 );
 
 // ── Supplements tab: the patient's list + their open requests ────────────────────────────
