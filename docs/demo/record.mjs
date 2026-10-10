@@ -236,15 +236,15 @@ await scene('s03_portal_pay', async () => {
     await moveTo(b.x + b.width / 2, b.y + b.height / 2, 500);
   }
   await sleep(300);
-  await goto(portalUrl);
+  await goto(portalUrl + '?view=bills');
   log('  portal loaded');
-  const bal = await page.$('.portal-balance');
+  const bal = await page.$('.xp-balance');
   if (bal) {
     const b = await bal.boundingBox();
     await moveTo(b.x + b.width * 0.8, b.y + b.height / 2, 700);
   }
   await sleep(2200);
-  await clickOn('a::-p-text(Review and pay)', { ms: 900 });
+  await clickOn('a::-p-text(Make Payment)', { ms: 900 });
   await page.waitForSelector('#cc-number');
   await installCursor();
   await sleep(1200);

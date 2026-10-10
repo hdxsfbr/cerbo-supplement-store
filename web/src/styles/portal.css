@@ -40,21 +40,9 @@
   --portal-divider: #edeceb;
 }
 
-.portal-page {
-  min-height: 100vh;
-  background: var(--portal-bg);
-  color: var(--portal-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.5;
-  padding: 48px 20px;
-  display: flex;
-  justify-content: center;
-}
-
 .portal-card {
   width: 100%;
-  max-width: 640px;
+  max-width: 680px;
   background: var(--portal-card-bg);
   border: 1px solid var(--portal-card-border);
   border-radius: 12px;
@@ -236,87 +224,6 @@
 }
 
 /* ---------------------------------------------------------------- Portal inbox & invoices ---- */
-.portal-section {
-  margin-top: 24px;
-}
-.portal-section__title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--portal-muted);
-  margin: 0 0 8px;
-}
-.portal-balance {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 12px 14px;
-  border: 1px solid var(--portal-card-border);
-  border-radius: 8px;
-  background: var(--portal-info-bg);
-}
-.portal-balance__amount {
-  font-size: 22px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.portal-message {
-  border: 1px solid var(--portal-card-border);
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin-bottom: 10px;
-}
-.portal-message__subject {
-  font-weight: 600;
-  margin: 0 0 4px;
-}
-.portal-message__meta {
-  font-size: 12px;
-  color: var(--portal-muted);
-  margin: 0 0 8px;
-}
-.portal-message__body {
-  margin: 0 0 10px;
-}
-.portal-invoices {
-  width: 100%;
-  border-collapse: collapse;
-}
-.portal-invoices th,
-.portal-invoices td {
-  padding: 8px 6px;
-  border-bottom: 1px solid var(--portal-divider);
-  text-align: left;
-  font-size: 14px;
-}
-.portal-invoices th {
-  font-size: 12px;
-  color: var(--portal-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.portal-invoices__num {
-  text-align: right !important;
-  font-variant-numeric: tabular-nums;
-}
-.portal-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--portal-info-bg);
-  color: var(--portal-info-fg);
-}
-.portal-badge--due {
-  background: #fff7ed;
-  color: #9a3412;
-}
-.portal-badge--paid {
-  background: var(--portal-paid-bg);
-  color: var(--portal-paid-fg);
-}
 .portal-link {
   color: var(--portal-accent);
   text-decoration: none;
@@ -324,11 +231,6 @@
 }
 .portal-link:hover {
   text-decoration: underline;
-}
-.portal-back {
-  display: inline-block;
-  margin-bottom: 12px;
-  font-size: 14px;
 }
 
 /* ---------------------------------------------------------------- Card form ---- */

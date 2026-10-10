@@ -241,3 +241,18 @@ modal that priced and sent in place. In exchange the chart reads like Cerbo (a m
 list) and the money path has exactly one entry point, the order page, which keeps the split and
 ledger rules untouched. Requests add a small inbox the provider must watch; we surface it as a
 badge on the tab rather than a new page.
+
+## 18. One patient portal: the token link and checkout live in the Cerbo-style portal
+
+**Date:** 2026-10-09
+**Context:** Two patient portals had grown side by side: the plain `/portal/:token` page from
+the first cut and the Cerbo replica built later behind the demo sign-in. "View as patient" and
+the email nudge still opened the plain one, and checkout was a lone card on a white page.
+**Decision:** The Cerbo-style portal is the only portal. It renders for a capability token
+(`/portal/:token`) and for the signed-in demo patient (`/portal`), with the section in the URL
+(`?view=bills`) so links can deep-link. A shared `PortalShell` (logo, frame, sidebar) wraps both
+the portal and the checkout page, which now sits under Invoices & Payment. The old page and its
+styles are deleted.
+**Trade-off:** The token still grants the whole portal, not just one invoice, exactly as before;
+nothing about the identity seam changed. Checkout keeps its own card styles inside the shell
+rather than being restyled to Cerbo's billing widgets, which is a cosmetic follow-up.

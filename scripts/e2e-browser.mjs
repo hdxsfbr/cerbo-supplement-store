@@ -63,9 +63,11 @@ await page.waitForFunction(() => document.body.innerText.includes('Portal messag
 const portalUrl = await page.$eval('a::-p-text(View as patient)', (a) => a.href);
 console.log('PORTAL', portalUrl.replace(/portal\/.*/, 'portal/…'));
 await page.goto(portalUrl, { waitUntil: 'networkidle0' });
-await page.waitForFunction(() => document.body.innerText.includes('Balance due'));
+await page.waitForSelector('.xp-side__hi');
+await page.click('.xp-nav a::-p-text(Secure Messages)');
+await page.waitForSelector('a::-p-text(Pay Now)');
 await page.screenshot({ path: `${OUT}/portal.png`, fullPage: true });
-await page.click('a::-p-text(Review and pay)');
+await page.click('a::-p-text(Pay Now)');
 await page.waitForSelector('#cc-number');
 await page.screenshot({ path: `${OUT}/checkout.png`, fullPage: true });
 // a declined test card first → inline error, order still payable

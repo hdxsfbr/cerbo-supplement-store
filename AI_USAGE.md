@@ -364,3 +364,10 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
 - A regression caught in the browser pass: the store pages' centered width lived in App.vue's
   scoped styles and vanished with the old nav; moved to `cerbo.css`.
 - The end-to-end script and the demo recorder sign in first now that provider pages are gated.
+
+### 2026-10-09 — One patient portal
+
+- Andre noticed "View as patient" still opened the first-cut portal. Consolidated: the Cerbo
+  replica now serves the token route, checkout renders inside its shell under Invoices &
+  Payment, and the old page, its route surface and its CSS are gone (DECISIONS #18).
+- The e2e script and demo recorder pay from the portal's Secure Messages / Make Payment now.

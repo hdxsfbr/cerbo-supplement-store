@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// Patient checkout (T020, HDX-97) — the patient-portal surface (constitution VI). Loads the order
-// via its capability token, takes card details through a fake tokenizer (the number never leaves
-// the browser), pays once, and shows a receipt afterwards.
+// Patient checkout (T020, HDX-97) — pays one invoice inside the patient portal (Invoices &
+// Payment). Loads the order via its capability token, takes card details through a fake
+// tokenizer (the number never leaves the browser), pays once, and shows a receipt afterwards.
 import '../styles/portal.css';
 import { computed, onMounted, ref } from 'vue';
+import PortalShell from '../components/PortalShell.vue';
 import { api, ApiError } from '../api';
 import {
   TEST_CARDS,
@@ -30,12 +31,18 @@ const order = ref<CheckoutView | null>(null);
 
 const isPaid = computed(() => order.value?.paid === true);
 const isDraft = computed(() => order.value?.status === 'draft');
-// A patient signed in through the demo login came from the Cerbo-style portal; send them back there.
+// Signed in through the demo login the portal needs no token; by link, the token travels along.
 const login = useLoginStore();
+const portalToken = computed(() =>
+  login.isPatient ? null : (order.value?.portal_url.match(/\/portal\/([^/?#]+)/)?.[1] ?? null),
+);
 const portalPath = computed(() =>
-  login.isPatient
-    ? '/experimental-portal'
-    : (order.value?.portal_url.replace(/^https?:\/\/[^/]+/, '') ?? null),
+  login.isPatient || portalToken.value
+    ? {
+        path: portalToken.value ? `/portal/${portalToken.value}` : '/portal',
+        query: { view: 'bills' },
+      }
+    : null,
 );
 
 // ── Card form ────────────────────────────────────────────────────────────────────────────
@@ -143,177 +150,181 @@ onMounted(loadOrder);
 </script>
 
 <template>
-  <div class="portal-card">
-    <RouterLink v-if="portalPath" :to="portalPath" class="portal-link portal-back"
-      >← Back to portal</RouterLink
-    >
+  <PortalShell :name="order?.patient.name ?? null" :token="portalToken" active="bills">
+    <h1>My Bills and Payments</h1>
+    <p class="lead">
+      <RouterLink v-if="portalPath" :to="portalPath" class="portal-link"
+        >← Back to invoices</RouterLink
+      >
+    </p>
+    <div class="portal-card">
+      <template v-if="loading">
+        <p class="portal-muted">Loading your order…</p>
+      </template>
 
-    <template v-if="loading">
-      <p class="portal-muted">Loading your order…</p>
-    </template>
+      <template v-else-if="errorMessage && !order">
+        <div class="portal-header">
+          <p class="portal-header__practice">Cerbo</p>
+          <h1 class="portal-header__title">Supplement order</h1>
+        </div>
+        <p class="portal-status portal-status--error">{{ errorMessage }}</p>
+      </template>
 
-    <template v-else-if="errorMessage && !order">
-      <div class="portal-header">
-        <p class="portal-header__practice">Cerbo</p>
-        <h1 class="portal-header__title">Supplement order</h1>
-      </div>
-      <p class="portal-status portal-status--error">{{ errorMessage }}</p>
-    </template>
-
-    <template v-else-if="order">
-      <div class="portal-header">
-        <p class="portal-header__practice">{{ order.provider.name }}</p>
-        <h1 class="portal-header__title">Supplement order</h1>
-        <p class="portal-meta">For {{ order.patient.name }} · Order #{{ order.id }}</p>
-      </div>
-
-      <p v-if="isPaid" class="portal-status portal-status--paid">Paid — thank you</p>
-      <p v-else-if="isDraft" class="portal-status portal-status--info">
-        This order isn't ready for payment yet.
-      </p>
-
-      <table class="portal-items">
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th class="portal-items__num">Qty</th>
-            <th class="portal-items__num">Unit price</th>
-            <th class="portal-items__num">Line total</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in order.items" :key="item.name + item.sku">
-            <td>
-              <div class="portal-items__name">{{ item.name }}</div>
-              <div v-if="item.sku" class="portal-items__sku">{{ item.sku }}</div>
-              <div v-if="item.sig" class="portal-items__sku">{{ item.sig }}</div>
-            </td>
-            <td class="portal-items__num">{{ item.quantity }}</td>
-            <td class="portal-items__num">{{ formatCents(item.unit_price_cents) }}</td>
-            <td class="portal-items__num">{{ formatCents(item.line_total_cents) }}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="portal-total">
-        <span>Total</span>
-        <span class="portal-total__amount">{{ formatCents(order.total_cents) }}</span>
-      </div>
-
-      <div v-if="isPaid && order.payment" class="portal-receipt">
-        <dl>
-          <dt>Paid</dt>
-          <dd>{{ formatDate(order.paid_at) }}</dd>
-          <dt>Amount</dt>
-          <dd>{{ formatCents(order.payment.amount_cents) }}</dd>
-          <dt v-if="order.payment.card_last4">Card</dt>
-          <dd v-if="order.payment.card_last4">
-            {{ brandLabel(order.payment.card_brand) }} ending {{ order.payment.card_last4 }}
-          </dd>
-          <dt>Reference</dt>
-          <dd>{{ order.payment.gateway_ref ?? order.payment.idempotency_key }}</dd>
-        </dl>
-      </div>
-
-      <form v-else-if="!isDraft" class="portal-form" novalidate @submit.prevent="pay">
-        <p class="portal-form__title">Pay with card</p>
-        <p v-if="errorMessage" class="portal-status portal-status--error">{{ errorMessage }}</p>
-
-        <div class="portal-field">
-          <label for="cc-name">Name on card</label>
-          <input
-            id="cc-name"
-            v-model="name"
-            autocomplete="cc-name"
-            :aria-invalid="!!show('name')"
-            @blur="touched.name = true"
-          />
-          <span v-if="show('name')" class="portal-field__error">{{ errors.name }}</span>
+      <template v-else-if="order">
+        <div class="portal-header">
+          <p class="portal-header__practice">{{ order.provider.name }}</p>
+          <h1 class="portal-header__title">Supplement order</h1>
+          <p class="portal-meta">For {{ order.patient.name }} · Order #{{ order.id }}</p>
         </div>
 
-        <div class="portal-field">
-          <label for="cc-number">Card number</label>
-          <input
-            id="cc-number"
-            :value="number"
-            inputmode="numeric"
-            autocomplete="cc-number"
-            placeholder="1234 5678 9012 3456"
-            :aria-invalid="!!show('number')"
-            @input="onNumber"
-            @blur="touched.number = true"
-          />
-          <span v-if="show('number')" class="portal-field__error">{{ errors.number }}</span>
-          <span v-else-if="brand !== 'unknown'" class="portal-card-brand">{{
-            brandLabel(brand)
-          }}</span>
-        </div>
-
-        <div class="portal-row">
-          <div class="portal-field">
-            <label for="cc-exp">Expiry</label>
-            <input
-              id="cc-exp"
-              :value="expiry"
-              inputmode="numeric"
-              autocomplete="cc-exp"
-              placeholder="MM/YY"
-              :aria-invalid="!!show('expiry')"
-              @input="onExpiry"
-              @blur="touched.expiry = true"
-            />
-            <span v-if="show('expiry')" class="portal-field__error">{{ errors.expiry }}</span>
-          </div>
-          <div class="portal-field">
-            <label for="cc-cvc">CVC</label>
-            <input
-              id="cc-cvc"
-              :value="cvc"
-              inputmode="numeric"
-              autocomplete="cc-csc"
-              placeholder="123"
-              :aria-invalid="!!show('cvc')"
-              @input="onCvc"
-              @blur="touched.cvc = true"
-            />
-            <span v-if="show('cvc')" class="portal-field__error">{{ errors.cvc }}</span>
-          </div>
-          <div class="portal-field">
-            <label for="cc-zip">ZIP</label>
-            <input
-              id="cc-zip"
-              v-model="zip"
-              inputmode="numeric"
-              autocomplete="postal-code"
-              placeholder="94105"
-              :aria-invalid="!!show('zip')"
-              @blur="touched.zip = true"
-            />
-            <span v-if="show('zip')" class="portal-field__error">{{ errors.zip }}</span>
-          </div>
-        </div>
-
-        <button type="submit" class="portal-btn portal-btn--primary" :disabled="paying">
-          {{ paying ? 'Processing…' : `Pay ${formatCents(order.total_cents)}` }}
-        </button>
-        <p class="portal-secure">
-          🔒 Your card details are encrypted and never stored by the practice.
+        <p v-if="isPaid" class="portal-status portal-status--paid">Paid — thank you</p>
+        <p v-else-if="isDraft" class="portal-status portal-status--info">
+          This order isn't ready for payment yet.
         </p>
 
-        <p class="portal-testcards">
-          Test cards:
-          <button
-            v-for="c in TEST_CARDS"
-            :key="c.number"
-            type="button"
-            @click="useTestCard(c.number)"
-          >
-            {{ c.number }} ({{ c.label }})
+        <table class="portal-items">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th class="portal-items__num">Qty</th>
+              <th class="portal-items__num">Unit price</th>
+              <th class="portal-items__num">Line total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in order.items" :key="item.name + item.sku">
+              <td>
+                <div class="portal-items__name">{{ item.name }}</div>
+                <div v-if="item.sku" class="portal-items__sku">{{ item.sku }}</div>
+                <div v-if="item.sig" class="portal-items__sku">{{ item.sig }}</div>
+              </td>
+              <td class="portal-items__num">{{ item.quantity }}</td>
+              <td class="portal-items__num">{{ formatCents(item.unit_price_cents) }}</td>
+              <td class="portal-items__num">{{ formatCents(item.line_total_cents) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="portal-total">
+          <span>Total</span>
+          <span class="portal-total__amount">{{ formatCents(order.total_cents) }}</span>
+        </div>
+
+        <div v-if="isPaid && order.payment" class="portal-receipt">
+          <dl>
+            <dt>Paid</dt>
+            <dd>{{ formatDate(order.paid_at) }}</dd>
+            <dt>Amount</dt>
+            <dd>{{ formatCents(order.payment.amount_cents) }}</dd>
+            <dt v-if="order.payment.card_last4">Card</dt>
+            <dd v-if="order.payment.card_last4">
+              {{ brandLabel(order.payment.card_brand) }} ending {{ order.payment.card_last4 }}
+            </dd>
+            <dt>Reference</dt>
+            <dd>{{ order.payment.gateway_ref ?? order.payment.idempotency_key }}</dd>
+          </dl>
+        </div>
+
+        <form v-else-if="!isDraft" class="portal-form" novalidate @submit.prevent="pay">
+          <p class="portal-form__title">Pay with card</p>
+          <p v-if="errorMessage" class="portal-status portal-status--error">{{ errorMessage }}</p>
+
+          <div class="portal-field">
+            <label for="cc-name">Name on card</label>
+            <input
+              id="cc-name"
+              v-model="name"
+              autocomplete="cc-name"
+              :aria-invalid="!!show('name')"
+              @blur="touched.name = true"
+            />
+            <span v-if="show('name')" class="portal-field__error">{{ errors.name }}</span>
+          </div>
+
+          <div class="portal-field">
+            <label for="cc-number">Card number</label>
+            <input
+              id="cc-number"
+              :value="number"
+              inputmode="numeric"
+              autocomplete="cc-number"
+              placeholder="1234 5678 9012 3456"
+              :aria-invalid="!!show('number')"
+              @input="onNumber"
+              @blur="touched.number = true"
+            />
+            <span v-if="show('number')" class="portal-field__error">{{ errors.number }}</span>
+            <span v-else-if="brand !== 'unknown'" class="portal-card-brand">{{
+              brandLabel(brand)
+            }}</span>
+          </div>
+
+          <div class="portal-row">
+            <div class="portal-field">
+              <label for="cc-exp">Expiry</label>
+              <input
+                id="cc-exp"
+                :value="expiry"
+                inputmode="numeric"
+                autocomplete="cc-exp"
+                placeholder="MM/YY"
+                :aria-invalid="!!show('expiry')"
+                @input="onExpiry"
+                @blur="touched.expiry = true"
+              />
+              <span v-if="show('expiry')" class="portal-field__error">{{ errors.expiry }}</span>
+            </div>
+            <div class="portal-field">
+              <label for="cc-cvc">CVC</label>
+              <input
+                id="cc-cvc"
+                :value="cvc"
+                inputmode="numeric"
+                autocomplete="cc-csc"
+                placeholder="123"
+                :aria-invalid="!!show('cvc')"
+                @input="onCvc"
+                @blur="touched.cvc = true"
+              />
+              <span v-if="show('cvc')" class="portal-field__error">{{ errors.cvc }}</span>
+            </div>
+            <div class="portal-field">
+              <label for="cc-zip">ZIP</label>
+              <input
+                id="cc-zip"
+                v-model="zip"
+                inputmode="numeric"
+                autocomplete="postal-code"
+                placeholder="94105"
+                :aria-invalid="!!show('zip')"
+                @blur="touched.zip = true"
+              />
+              <span v-if="show('zip')" class="portal-field__error">{{ errors.zip }}</span>
+            </div>
+          </div>
+
+          <button type="submit" class="portal-btn portal-btn--primary" :disabled="paying">
+            {{ paying ? 'Processing…' : `Pay ${formatCents(order.total_cents)}` }}
           </button>
-        </p>
-      </form>
+          <p class="portal-secure">
+            🔒 Your card details are encrypted and never stored by the practice.
+          </p>
 
-      <p class="portal-footer">Payment is simulated in this demo (no card is charged).</p>
-    </template>
-  </div>
+          <p class="portal-testcards">
+            Test cards:
+            <button
+              v-for="c in TEST_CARDS"
+              :key="c.number"
+              type="button"
+              @click="useTestCard(c.number)"
+            >
+              {{ c.number }} ({{ c.label }})
+            </button>
+          </p>
+        </form>
+
+        <p class="portal-footer">Payment is simulated in this demo (no card is charged).</p>
+      </template>
+    </div>
+  </PortalShell>
 </template>

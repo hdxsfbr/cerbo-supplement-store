@@ -5,7 +5,7 @@ import { useLoginStore } from './stores/login';
 // `patient` routes render in the clean portal layout. See App.vue.
 declare module 'vue-router' {
   interface RouteMeta {
-    surface: 'provider' | 'patient' | 'bare';
+    surface: 'provider' | 'bare';
     title?: string;
     /** Provider page that manages its own width (the chart grid). */
     full?: boolean;
@@ -56,7 +56,7 @@ const routes: RouteRecordRaw[] = [
     name: 'checkout',
     component: () => import('./views/Checkout.vue'),
     props: true,
-    meta: { surface: 'patient', title: 'Pay for your supplements' },
+    meta: { surface: 'bare', title: 'Pay for your supplements' },
   },
   {
     path: '/inventory',
@@ -72,20 +72,21 @@ const routes: RouteRecordRaw[] = [
     meta: { surface: 'provider', title: 'Patient Chart', full: true },
   },
   {
-    // EXPERIMENTAL: static replica of Cerbo's patient portal; no app chrome, nothing wired.
-    path: '/experimental-portal',
-    name: 'experimental-portal',
-    component: () => import('./views/ExperimentalPortal.vue'),
-    meta: { surface: 'bare', title: 'Patient Portal (experimental)' },
-  },
-  {
-    path: '/portal/:token',
+    // Patient portal (replica of Cerbo's) for the signed-in demo patient…
+    path: '/portal',
     name: 'portal',
     component: () => import('./views/PatientPortal.vue'),
-    props: true,
-    meta: { surface: 'patient', title: 'Patient Portal' },
+    meta: { surface: 'bare', title: 'Patient Portal' },
   },
-  { path: '/:pathMatch(.*)*', redirect: '/orders/new' },
+  {
+    // …and by capability token (the link in portal messages / email nudges).
+    path: '/portal/:token',
+    name: 'portal-token',
+    component: () => import('./views/PatientPortal.vue'),
+    props: true,
+    meta: { surface: 'bare', title: 'Patient Portal' },
+  },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
 
 export const router = createRouter({ history: createWebHistory(), routes });
@@ -96,9 +97,9 @@ router.beforeEach((to) => {
   const a = useLoginStore().account;
   if (to.meta.surface === 'provider') {
     if (!a) return { name: 'login', query: { next: to.fullPath } };
-    if (a.role !== 'doctor') return { name: 'experimental-portal' };
+    if (a.role !== 'doctor') return { name: 'portal' };
   }
-  if (to.name === 'experimental-portal') {
+  if (to.name === 'portal') {
     if (!a) return { name: 'login' };
     if (a.role !== 'patient') return { name: 'experimental-chart' };
   }

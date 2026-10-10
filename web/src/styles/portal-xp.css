@@ -754,3 +754,20 @@
   font-size: 13px;
   margin: -8px 0 14px;
 }
+
+/* sidebar entries are links (or inert spans) inside the list item */
+.xp-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  color: #444;
+  text-decoration: none;
+}
+.xp-nav li.on .xp-nav__link > span:last-child {
+  font-weight: 700;
+  color: #222;
+}
+.xp-nav__ic {
+  display: grid;
+}
