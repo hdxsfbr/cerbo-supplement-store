@@ -380,3 +380,10 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   list/request flow and the Cerbo-style portal; test counts corrected; the no-credentials
   sign-in called out in README and ARCHITECTURE; request flows and "where things live" updated.
 - The production image was built and driven with the e2e script before merging to `main`.
+- **Incident, same day:** the release-prep rename used a blanket replace of `experimental-chart`
+  → `chart` and `experimental-portal` → `portal`, which turned the two old-path redirects into
+  self-redirects. `/portal` looped and patient sign-in failed on the public site for ~20 minutes
+  after v1.1.0; the doctor path and token links were unaffected. Caught by the post-deploy
+  sign-in check, not by the e2e script, which only covered the doctor and token paths. Fixed in
+  v1.1.1; the e2e script now signs in as a patient too, and the pre-merge gate runs it against
+  the production image. Lesson recorded: never rename with a blanket replace over route tables.

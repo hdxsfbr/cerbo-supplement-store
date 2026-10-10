@@ -106,4 +106,22 @@ console.log(
 );
 console.log(errs.length ? errs.join('\n') : 'no page errors');
 if (errs.length) process.exitCode = 1;
+// Patient sign-in (demo login, not a token link): portal greeting, bills section, sign out.
+await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
+await page.select('#login-email', 'zeus@olympus.example');
+await page.click('button[type=submit]');
+await page.waitForSelector('.xp-side__hi', { timeout: 15000 });
+console.log('PATIENT PORTAL', await page.$eval('.xp-side__hi', (e) => e.textContent.trim()));
+await page.goto(`${BASE}/portal?view=bills`, { waitUntil: 'networkidle0' });
+await page.waitForSelector('.xp-balance', { timeout: 15000 });
+console.log(
+  'BALANCE',
+  await page.$eval('.xp-balance', (e) => e.textContent.replace(/\s+/g, ' ').trim()),
+);
+await page.click('.xp-side__out');
+await page.waitForSelector('#login-email');
+// the pre-v1.1.0 paths still resolve
+await page.goto(`${BASE}/experimental-portal`, { waitUntil: 'networkidle0' });
+console.log('OLD PORTAL PATH →', page.url().replace(BASE, ''));
+
 await browser.close();

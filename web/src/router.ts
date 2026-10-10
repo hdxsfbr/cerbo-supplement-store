@@ -72,8 +72,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('./views/PatientChart.vue'),
     meta: { surface: 'provider', title: 'Patient Chart', full: true },
   },
-  { path: '/chart', redirect: (to) => ({ path: '/chart', query: to.query }) },
-  { path: '/portal', redirect: '/portal' },
+  // Old paths from before v1.1.0 (bookmarks, the first demo video).
+  { path: '/experimental-chart', redirect: (to) => ({ path: '/chart', query: to.query }) },
+  { path: '/experimental-portal', redirect: '/portal' },
   {
     // Patient portal (replica of Cerbo's) for the signed-in demo patient…
     path: '/portal',
