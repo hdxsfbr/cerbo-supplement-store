@@ -26,6 +26,9 @@ half-cent fee) · Orders / sales report / inventory · under-the-hood slide · c
    total $42.00, fee 31.5¢ → 32¢) because the audit narration says so.
 4. **Assembly** — `AUDIO_DIR=audio-v11 OUT_NAME=cerbo-supplement-store-demo-v1.1 ./mux.sh` paces
    every clip/still to its WAV, concatenates, fades out.
+5. **Touch-up** — `OUT_NAME=… ./freeze.sh <scene> <from_s> <to_s>` holds a still frame over a
+   window of one segment and reassembles (used to hide the unstyled flash of the page reload in
+   the portal scene: `./freeze.sh s04_portal_pay 28.5 34.25`).
 
 Generated artefacts (`audio*/*.wav`, `clips/`, `slides/png/`, `out/`) are gitignored; the scripts,
 narration and slide HTML are the source of truth.
