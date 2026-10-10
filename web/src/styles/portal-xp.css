@@ -75,15 +75,6 @@
   border-bottom: 1px solid #ccc;
   margin-bottom: 18px;
 }
-.xp-side__switch {
-  width: 100%;
-  height: 40px;
-  border: 1px solid #ccc;
-  background: #fff;
-  font: inherit;
-  padding: 0 10px;
-  margin-bottom: 16px;
-}
 .xp-nav {
   list-style: none;
   margin: 0;
@@ -752,7 +743,7 @@
   display: block;
   text-align: center;
   font-size: 13px;
-  margin: -8px 0 14px;
+  margin: 0 0 16px;
 }
 
 /* sidebar entries are links (or inert spans) inside the list item */

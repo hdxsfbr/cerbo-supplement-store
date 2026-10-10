@@ -76,9 +76,6 @@ function signOut(): void {
         </div>
         <aside class="xp__side">
           <div class="xp-side__hi">Hi {{ firstName || 'there' }}!</div>
-          <select class="xp-side__switch">
-            <option>Switch Account</option>
-          </select>
           <a href="#" class="xp-side__out" @click.prevent="signOut">Sign Out</a>
           <ul class="xp-nav">
             <li
