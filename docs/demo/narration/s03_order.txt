@@ -1,0 +1,7 @@
+The order page opens pre-filled from the list, at the practice's default prices, with the directions carried over.
+
+I can override a price directly, or type a target margin and let the price derive from it. Sixty percent on vitamin D makes it ten dollars even.
+
+The billing panel shows the split live: the order total, cost of goods, the platform fee, and the provider's margin after that fee.
+
+When I send the order it locks, and the patient gets what Cerbo would actually send: a secure portal message, and an email nudge.

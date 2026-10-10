@@ -14,20 +14,23 @@ const CLIPS = path.join(HERE, 'clips');
 mkdirSync(CLIPS, { recursive: true });
 
 const AUDIO_DIR = process.env.AUDIO_DIR ?? 'audio';
+// DRY=1: no narration yet — run every scene's actions once (selector check) without pacing.
 const audioDur = (id) =>
-  Number(
-    execFileSync('ffprobe', [
-      '-v',
-      'error',
-      '-show_entries',
-      'format=duration',
-      '-of',
-      'csv=p=0',
-      path.join(HERE, AUDIO_DIR, `${id}_norm.wav`),
-    ])
-      .toString()
-      .trim(),
-  );
+  process.env.DRY
+    ? 0
+    : Number(
+        execFileSync('ffprobe', [
+          '-v',
+          'error',
+          '-show_entries',
+          'format=duration',
+          '-of',
+          'csv=p=0',
+          path.join(HERE, AUDIO_DIR, `${id}_norm.wav`),
+        ])
+          .toString()
+          .trim(),
+      );
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ONLY = process.env.SCENES ? process.env.SCENES.split(',') : null;
@@ -111,8 +114,14 @@ async function clickOn(selectorOrHandle, opts = {}) {
     typeof selectorOrHandle === 'string'
       ? await page.waitForSelector(selectorOrHandle, { visible: true })
       : selectorOrHandle;
-  const box = await el.boundingBox();
+  let box = await el.boundingBox();
   if (!box) throw new Error('no box for ' + selectorOrHandle);
+  // Clicks are by coordinates: bring off-screen targets into view first (the portal frame is tall).
+  if (box.y < 0 || box.y + box.height > 1080) {
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    await sleep(450);
+    box = await el.boundingBox();
+  }
   const x = box.x + box.width * (opts.fx ?? 0.5),
     y = box.y + box.height * (opts.fy ?? 0.5);
   await moveTo(x, y, opts.ms ?? 650);
@@ -169,188 +178,243 @@ const slide = (name) => 'file://' + path.join(HERE, 'slides', name);
 // ─────────────────────────────────────────────────────────────────────────────────────────
 // Static slides (s01, s07) are built from PNGs by mux.sh; screencast emits no frames on a still page.
 
-// sign in as Dr. Welby (demo login) before the first provider scene
-await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
-await page.select('#login-email', 'welby@demo.cer.bo');
-await page.click('button[type=submit]');
-await page.waitForSelector('button.xc-nav__user');
-
-// s02 — order builder
-await goto(`${BASE}/orders/new`);
-await scene('s02_builder', async () => {
-  await sleep(1500);
-  await clickOn('select[aria-label="Patient"]');
-  await page.select('select[aria-label="Patient"]', '1'); // Zeus King
+// ── Helpers for this demo ────────────────────────────────────────────────────────────────
+async function signIn(email) {
+  await goto(`${BASE}/`);
   await sleep(600);
-  await clickOn('button::-p-text(Start supplement order)');
-  await page.waitForSelector('input[aria-label="Add a supplement"]');
-  await sleep(800);
-  // Typeahead picker: type a few letters, pick the highlighted match
-  await clickOn('input[aria-label="Add a supplement"]');
-  await page.type('input[aria-label="Add a supplement"]', 'omega', { delay: 90 });
+  await clickOn('#login-email');
+  await page.select('#login-email', email);
   await sleep(500);
-  await clickOn('.ss__row--on');
-  await sleep(700);
-  await page.type('input[aria-label="Add a supplement"]', 'vitamin d', { delay: 90 });
-  await sleep(500);
-  await clickOn('.ss__row--on');
-  await sleep(1200);
-  // override the vitamin D price to $9.50
-  const priceInputs = await page.$$('input[id^="price-"]');
-  await clickOn(priceInputs[1], { fx: 0.8 });
-  await selectAll();
-  await typeSlow('9.50');
-  await page.keyboard.press('Tab');
-  await sleep(1400);
-  // type a target margin on vitamin D → price derives to exactly $10.00 (60% on $4.00 COGS),
-  // so the order total is $42.00 and the fee lands on a half cent (31.5¢ → 32¢), as narrated.
+  await clickOn('button[type=submit]', { ms: 700 });
+}
+async function hoverEl(selector, fx = 0.5, fy = 0.5, ms = 800) {
+  const el = typeof selector === 'string' ? await page.$(selector) : selector;
+  if (!el) return;
+  let b = await el.boundingBox();
+  if (b && (b.y < 0 || b.y + b.height > 1080)) {
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    await sleep(450);
+    b = await el.boundingBox();
+  }
+  if (b) await moveTo(b.x + b.width * fx, b.y + b.height * fy, ms);
+}
+// Re-runnable: Zeus's list rows and open requests from a previous take are cleared first.
+async function resetZeus() {
+  const h = { 'x-acting-provider': '1', 'content-type': 'application/json' };
+  const list = await (await fetch(`${BASE}/api/patients/1/supplements`, { headers: h })).json();
+  for (const r of list.supplements.filter((x) => x.status === 'active')) {
+    await fetch(`${BASE}/api/patient-supplements/${r.id}`, {
+      method: 'PATCH',
+      headers: h,
+      body: JSON.stringify({ status: 'discontinued' }),
+    });
+  }
+  const reqs = await (await fetch(`${BASE}/api/requests`, { headers: h })).json();
+  for (const r of reqs.requests.filter((x) => x.status === 'requested')) {
+    await fetch(`${BASE}/api/requests/${r.id}/decline`, { method: 'POST', headers: h, body: '{}' });
+  }
+  log('reset: zeus list + requests cleared');
+}
+await resetZeus();
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// Static slides (s01, s09) are built from PNGs by mux.sh; screencast emits no frames on a still page.
+
+// s02 — chart: sign in, Supplements tab, add two supplements to the list, create the order
+await goto(`${BASE}/`);
+let firstOrderId = null;
+await scene('s02_chart', async () => {
+  await signIn('welby@demo.cer.bo');
+  await page.waitForSelector('select[aria-label="Search patients"]');
+  await sleep(400);
+  await clickOn('select[aria-label="Search patients"]');
+  await page.select('select[aria-label="Search patients"]', '1'); // Zeus King
+  await page.waitForFunction(() => document.body.innerText.includes('Unreviewed for Zeus King'));
+  await sleep(400);
+  await clickOn('span.xc-tab::-p-text(Supplements)', { ms: 450 });
+  await sleep(350);
+  await clickOn('span.xc-tabs__add', { ms: 450 });
+  await page.waitForSelector('input.xc-pick__search');
+  await sleep(300);
+  await clickOn('input.xc-pick__search');
+  await typeSlow('omega', 55);
+  await sleep(350);
+  await clickOn('div.xc-pick__row--on', { ms: 400 });
+  await page.waitForSelector('fieldset.xc-fs select');
+  await sleep(350);
+  await clickOn('fieldset.xc-fs select:nth-of-type(1)');
+  await page.select('fieldset.xc-fs select:nth-of-type(1)', '2');
+  await sleep(300);
+  await clickOn('fieldset.xc-fs select:nth-of-type(3)');
+  await page.select('fieldset.xc-fs select:nth-of-type(3)', 'with meals');
+  await sleep(400);
+  await clickOn('button.xc-btn::-p-text(Add Another)', { ms: 450 });
+  await page.waitForSelector('input.xc-pick__search');
+  await sleep(300);
+  await clickOn('input.xc-pick__search');
+  await typeSlow('vitamin d', 55);
+  await sleep(350);
+  await clickOn('div.xc-pick__row--on', { ms: 400 });
+  await page.waitForSelector('button.xc-btn::-p-text(Add to List)');
+  await sleep(400);
+  await clickOn('button.xc-btn::-p-text(Add to List)', { ms: 450 });
+  await page.waitForFunction(() => document.querySelectorAll('.xc-supp').length >= 2);
+  await sleep(400);
+  for (const cb of await page.$$('.xc-supp input[type=checkbox]')) await clickOn(cb, { ms: 400 });
+  await sleep(400);
+  await clickOn('a::-p-text(Create supplement order)', { ms: 450 });
+  await page.waitForSelector('.ob__patient');
+  await sleep(400);
+});
+firstOrderId = await page.evaluate(() => document.body.innerText.match(/Order #(\d+)/)?.[1]);
+log('first order id:', firstOrderId);
+
+// s03 — order page: margin → $10.00 vitamin D (total $42.00, fee 31.5¢ → 32¢), split, send
+await scene('s03_order', async () => {
+  await sleep(2500);
+  const lines = await page.$$('.ob__lines tbody tr');
+  for (const l of lines) {
+    await hoverEl(l, 0.2, 0.5, 500);
+    await sleep(500);
+  }
+  await sleep(1500);
   const pct = await page.$$('input[aria-label^="Margin percent"]');
-  await clickOn(pct[1], { fx: 0.3 }); // left of the number spinner
+  await clickOn(pct[1], { fx: 0.3 }); // vitamin D is the second line (list order)
   await selectAll();
   await typeSlow('60');
   await page.keyboard.press('Tab');
-  await sleep(2200);
-  // hover the billing panel so the eye follows the narration
-  const bill = await page.$('.cerbo-split-preview');
-  if (bill) {
-    const b = await bill.boundingBox();
-    await moveTo(b.x + b.width * 0.5, b.y + b.height * 0.6, 900);
-  }
-  await sleep(5500);
+  await sleep(2600);
+  await hoverEl('.cerbo-split-preview', 0.5, 0.6, 900);
+  await sleep(6500);
   await clickOn('button::-p-text(Send to patient for payment)', { ms: 800 });
   await page.waitForFunction(() => document.body.innerText.includes('Sent to patient'));
   await sleep(500);
-  const notes = await page.$('.ob__notes');
-  if (notes) {
-    const b = await notes.boundingBox();
-    await moveTo(b.x + 40, b.y + 20, 700);
-  }
+  await hoverEl('.ob__notes', 0.1, 0.2, 700);
 });
 
-// s03 — portal + pay (declined, then good)
-const portalUrl = await page.$eval('a::-p-text(View as patient)', (a) => a.href);
-await scene('s03_portal_pay', async () => {
-  const btn = await page.$('a::-p-text(View as patient)');
-  if (btn) {
-    const b = await btn.boundingBox();
-    await moveTo(b.x + b.width / 2, b.y + b.height / 2, 500);
-  }
-  await sleep(300);
-  await goto(portalUrl + '?view=bills');
-  log('  portal loaded');
-  const bal = await page.$('.xp-balance');
-  if (bal) {
-    const b = await bal.boundingBox();
-    await moveTo(b.x + b.width * 0.8, b.y + b.height / 2, 700);
-  }
-  await sleep(2200);
-  await clickOn('a::-p-text(Make Payment)', { ms: 900 });
+// s04 — patient: sign in, pay from Secure Messages (declined, then good), request a refill
+await clickOn('button.xc-nav__user', { ms: 500 });
+await clickOn('.xc-menu__item::-p-text(Sign out)', { ms: 500 });
+await page.waitForSelector('#login-email');
+await scene('s04_portal_pay', async () => {
+  await signIn('zeus@olympus.example');
+  await page.waitForSelector('.xp-side__hi');
+  await sleep(700);
+  await clickOn('.xp-nav a::-p-text(Secure Messages)', { ms: 700 });
+  await page.waitForSelector('a::-p-text(Pay Now)');
+  await sleep(900);
+  await clickOn('a::-p-text(Pay Now)', { ms: 800 });
   await page.waitForSelector('#cc-number');
   await installCursor();
-  await sleep(1200);
+  await sleep(700);
   await clickOn('#cc-name');
   await typeSlow('Zeus King', 45);
-  await sleep(800);
+  await sleep(600);
   await clickOn('button::-p-text(Declined)', { ms: 700 });
-  await sleep(700);
+  await sleep(600);
   await clickOn('button[type=submit]', { ms: 600 });
   await page.waitForFunction(() => document.body.innerText.includes('declined'), {
     timeout: 20000,
   });
   log('  decline shown');
-  const err = await page.$('.portal-status--error');
-  if (err) {
-    const b = await err.boundingBox();
-    await moveTo(b.x + b.width * 0.3, b.y + b.height / 2, 600);
-  }
-  await sleep(3000);
+  await hoverEl('.portal-status--error', 0.3, 0.5, 600);
+  await sleep(1600);
   await clickOn('button::-p-text(Succeeds)', { ms: 700 });
-  await sleep(600);
+  await sleep(500);
   await clickOn('button[type=submit]', { ms: 600 });
   await page.waitForFunction(() => document.body.innerText.includes('Paid — thank you'), {
     timeout: 20000,
   });
   log('  paid');
   await installCursor();
-  const card = await page.$('.portal-receipt');
-  if (card) {
-    const b = await card.boundingBox();
-    await moveTo(b.x + b.width * 0.7, b.y + b.height * 0.6, 800);
-  }
-  await sleep(2800);
+  await hoverEl('.portal-receipt', 0.7, 0.6, 800);
+  await sleep(1400);
   await page.reload({ waitUntil: 'networkidle0' });
   await installCursor();
-  const rc = await page.$('.portal-receipt');
-  if (rc) {
-    const b = await rc.boundingBox();
-    await moveTo(b.x + b.width * 0.7, b.y + b.height * 0.5, 700);
-  }
+  await hoverEl('.portal-receipt', 0.7, 0.5, 700);
+  await sleep(1400);
+  await clickOn('.xp-nav a::-p-text(My Supplements)', { ms: 800 });
+  await page.waitForSelector('.xp-table tbody tr');
+  await sleep(900);
+  const cb = await page.$('.xp-table tbody tr input[type=checkbox]');
+  if (cb) await clickOn(cb, { ms: 600 });
+  await clickOn('.xp-request input');
+  await typeSlow('Running low', 50);
+  await sleep(400);
+  await clickOn('button::-p-text(Request an Order)', { ms: 700 });
+  await page.waitForSelector('.xp-reqrow');
+  await hoverEl('.xp-reqrow', 0.2, 0.5, 700);
 });
 
-// s04 — audit (provider)
-const orderId = await page.evaluate(() => document.body.innerText.match(/Order #(\d+)/)?.[1]);
-log('order id for audit:', orderId);
-await goto(`${BASE}/orders/${orderId}/audit`);
-await scene('s04_audit', async () => {
+// s05 — provider: the request on the chart → create order → send
+await clickOn('.xp-side__out', { ms: 500 });
+await page.waitForSelector('#login-email');
+await signIn('welby@demo.cer.bo');
+await page.waitForSelector('select[aria-label="Search patients"]');
+await page.select('select[aria-label="Search patients"]', '1');
+await page.waitForFunction(() => document.body.innerText.includes('Unreviewed for Zeus King'));
+await scene('s05_request', async () => {
+  await sleep(600);
+  await clickOn('span.xc-tab::-p-text(Supplements)', { ms: 600 });
+  await page.waitForSelector('.xc-req');
+  await hoverEl('.xc-req', 0.3, 0.5, 700);
+  await sleep(1200);
+  await clickOn('.xc-req__act a::-p-text(Create order)', { ms: 700 });
+  await page.waitForSelector('.ob__patient');
+  await sleep(1000);
+  await clickOn('button::-p-text(Send to patient for payment)', { ms: 700 });
+  await page.waitForFunction(() => document.body.innerText.includes('Sent to patient'));
+  await sleep(400);
+});
+
+// s06 — audit of the first (paid) order
+await goto(`${BASE}/orders/${firstOrderId}/audit`);
+await scene('s06_audit', async () => {
   await sleep(2500);
   const rows = await page.$$('.audit__ledger tbody tr');
   for (const r of rows) {
-    const b = await r.boundingBox();
-    await moveTo(b.x + b.width * 0.45, b.y + b.height / 2, 700);
+    await hoverEl(r, 0.45, 0.5, 700);
     await sleep(1500);
   }
   const fee = await page.$('.audit__fee-table');
   if (fee) {
-    const b = await fee.boundingBox();
-    await moveTo(b.x + b.width * 0.8, b.y + b.height * 0.3, 900);
+    await hoverEl(fee, 0.8, 0.3, 900);
     await sleep(2500);
-    await moveTo(b.x + b.width * 0.8, b.y + b.height * 0.9, 900);
+    await hoverEl(fee, 0.8, 0.9, 900);
   }
   await sleep(4500);
-  const bal2 = await page.$('.cerbo-balance');
-  if (bal2) {
-    const b = await bal2.boundingBox();
-    await moveTo(b.x + b.width * 0.5, b.y + b.height / 2, 900);
-  }
+  await hoverEl('.cerbo-balance', 0.5, 0.5, 900);
   await sleep(4000);
-  const memo = await page.$('.audit__memo');
-  if (memo) {
-    const b = await memo.boundingBox();
-    await moveTo(b.x + b.width * 0.4, b.y + b.height / 2, 900);
-  }
+  await hoverEl('.audit__memo', 0.4, 0.5, 900);
 });
 
-// s05 — dashboard
-await goto(`${BASE}/dashboard`);
-await scene('s05_dashboard', async () => {
-  await sleep(1000);
+// s07 — Orders list → Sales report → Inventory (via the Supplements menu)
+await goto(`${BASE}/orders`);
+await scene('s07_reporting', async () => {
+  await sleep(800);
+  await clickOn('.ol__tab::-p-text(Paid)', { ms: 700 });
+  await sleep(900);
+  await clickOn('.ol__sort::-p-text(Total)', { ms: 600 });
+  await sleep(1100);
+  await goto(`${BASE}/dashboard`);
+  await sleep(600);
   const tiles = await page.$$('.dash__tiles .cerbo-panel');
   for (const t of tiles) {
-    const b = await t.boundingBox();
-    await moveTo(b.x + b.width / 2, b.y + b.height * 0.6, 450);
-    await sleep(300);
+    await hoverEl(t, 0.5, 0.6, 400);
+    await sleep(250);
   }
-  await sleep(1200);
-  // "Inventory moves when an order is paid…" → the Inventory tab (practice-wide stock)
-  await clickOn('a::-p-text(Inventory)', { ms: 700 });
+  await sleep(1000);
+  await goto(`${BASE}/inventory`);
   await page.waitForFunction(() => document.body.innerText.includes('Units on hand'));
   await installCursor();
-  const row = await page.$('.cerbo-table tbody tr');
-  if (row) {
-    const b = await row.boundingBox();
-    await moveTo(b.x + b.width * 0.85, b.y + b.height / 2, 800);
-  }
-  await sleep(1200);
-  const chip = await page.$('.cerbo-chip--warn');
-  if (chip) {
-    const b = await chip.boundingBox();
-    await moveTo(b.x + b.width / 2, b.y + b.height / 2, 800);
-  }
+  await hoverEl('.cerbo-table tbody tr', 0.85, 0.5, 800);
+  await sleep(900);
+  await hoverEl('.cerbo-chip--warn', 0.5, 0.5, 800);
 });
 
-// s06 — under the hood slide
-await goto(slide('s06_under_hood.html'));
-await scene('s06_under_hood', async () => {
+// s08 — under the hood slide
+await goto(slide('s08_under_hood.html'));
+await scene('s08_under_hood', async () => {
   await moveTo(470, 520, 600);
   await sleep(8500);
   await moveTo(1400, 520, 900);

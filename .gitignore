@@ -27,3 +27,4 @@ docs/demo/audio*/*.wav
 docs/demo/audio*/durations.json
 docs/demo/clips/
 docs/demo/out/
+docs/demo/slides/png/

@@ -1,0 +1,5 @@
+I sign in as Doctor Welby and land on the patient chart. This is a replica of Cerbo's, with the store added where Cerbo keeps its prescriptions: a Supplements tab, next to Medications.
+
+The tab is Zeus's supplement list, what he takes. Add Supplement opens the practice catalog, and then the directions form Cerbo uses for a sig. Omega-3, two softgels with meals. And vitamin D.
+
+The list has no prices on it. To order, I select the rows and create a supplement order.

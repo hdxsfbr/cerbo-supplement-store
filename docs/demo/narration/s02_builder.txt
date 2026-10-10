@@ -1,7 +1,0 @@
-This is the order builder, styled to sit inside Cerbo's chart. I'm acting as Doctor Welby. I pick Zeus King, and add Omega-3 and vitamin D.
-
-Prices pre-fill from the practice default. I can override a line directly, or type a target margin and let the price derive from it.
-
-The billing panel shows the split live: the order total, cost of goods, the platform fee, and the provider's margin after that fee.
-
-When I send the order, it locks, and the patient gets what Cerbo would actually send: a secure portal message, and an email nudge.

@@ -7,8 +7,8 @@ cd "$(dirname "$0")"
 AUDIO_DIR="${AUDIO_DIR:-audio}"          # audio (Turbo) or audio-std (standard model)
 OUT_NAME="${OUT_NAME:-cerbo-supplement-store-demo}"
 mkdir -p out/seg
-SCENES=(s01_intro s02_builder s03_portal_pay s04_audit s05_dashboard s06_under_hood s07_close)
-declare -A STILL=([s01_intro]=/tmp/shot/slide-s01_title.png [s07_close]=/tmp/shot/slide-s07_close.png)
+SCENES=(s01_intro s02_chart s03_order s04_portal_pay s05_request s06_audit s07_reporting s08_under_hood s09_close)
+declare -A STILL=([s01_intro]=slides/png/s01_title.png [s09_close]=slides/png/s09_close.png)
 LEAD=0.35   # silence before each scene's narration starts
 TAIL=0.45   # hold after narration ends
 > out/concat.txt

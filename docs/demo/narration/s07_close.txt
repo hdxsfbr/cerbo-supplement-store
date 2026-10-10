@@ -1,3 +1,0 @@
-The app is live on Railway, with CI on every push and sixty integration tests running against a real Postgres. The repo includes the decision log and the AI usage log, including the places where AI got it wrong and I had to override it.
-
-Thanks for taking the time to look. I'd welcome any questions.

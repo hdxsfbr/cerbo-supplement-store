@@ -1,0 +1,7 @@
+Now the patient side. Zeus signs in and lands on his portal, a replica of Cerbo's. Secure Messages has the order, with a pay button.
+
+Checkout opens under Invoices and Payment. Only a token leaves the browser, never the card number. I'll try a declined card first. The processor says no, the order stays payable, and nothing is written.
+
+Now a good card. The receipt shows the card ending in four two four two. If I refresh, it's still one payment. The idempotency key replays the original receipt.
+
+My Supplements shows the same list the doctor sees. Zeus can ask for a refill from here, but he never sees a price. The request goes to the provider.

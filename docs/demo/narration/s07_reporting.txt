@@ -1,0 +1,1 @@
+The Supplements menu holds the rest. Orders, with status filters and sortable columns. The sales report sums the ledger directly, so the tiles always reconcile with the per-order audits. And inventory, which moves when an order is paid, and is flagged when it goes negative.
