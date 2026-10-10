@@ -28,8 +28,9 @@ half-cent fee) · Orders / sales report (drop-ship note) · under-the-hood slide
 4. **Assembly** — `AUDIO_DIR=audio-v11 OUT_NAME=cerbo-supplement-store-demo-v1.1 ./mux.sh` paces
    every clip/still to its WAV, concatenates, fades out.
 5. **Touch-up** — `OUT_NAME=… ./freeze.sh <scene> <from_s> <to_s>` holds a still frame over a
-   window of one segment and reassembles (used to hide the unstyled flash of the page reload in
-   the portal scene: `./freeze.sh s04_portal_pay 28.5 34.25`).
+   window of one segment and reassembles. It was used once (`./freeze.sh s04_portal_pay 28.5 34.25`)
+   to cover what turned out to be a real bug: `PortalShell.vue` did not import its stylesheet, so a
+   direct load of `/pay/:token` rendered unstyled. Fixed in the app; a fresh take no longer needs it.
 
 Generated artefacts (`audio*/*.wav`, `clips/`, `slides/png/`, `out/`) are gitignored; the scripts,
 narration and slide HTML are the source of truth.

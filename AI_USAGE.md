@@ -405,3 +405,8 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
   that would be too vague. Agreed structure: every statement is either verifiable from this repo
   (seam method, table, route named) or an explicit assumption tied to a numbered question for
   the Cerbo team. The seam signatures and table list were pulled from the code, not retyped.
+- **Correction (2026-10-10):** the "reload flash" patched out of the demo video was a real bug.
+  `PortalShell.vue` relied on the portal and login pages having loaded `portal-xp.css`; a direct
+  load of `/pay/:token` rendered the frame unstyled until something else loaded that chunk. Andre
+  reproduced it on production. The shell now imports its own stylesheet; verified on the
+  production image with a direct load and a reload.

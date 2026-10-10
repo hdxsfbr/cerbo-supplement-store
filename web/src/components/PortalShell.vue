@@ -5,6 +5,7 @@
 //
 // The four wired entries deep-link with `?view=…`. Reached by capability token (/portal/:token)
 // the links keep the token; reached through the demo sign-in (/portal) they don't need one.
+import '../styles/portal-xp.css';
 import { computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useLoginStore } from '../stores/login';
