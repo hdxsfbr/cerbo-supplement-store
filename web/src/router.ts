@@ -20,6 +20,12 @@ const routes: RouteRecordRaw[] = [
     meta: { surface: 'bare', title: 'Sign in' },
   },
   {
+    path: '/orders',
+    name: 'orders',
+    component: () => import('./views/Orders.vue'),
+    meta: { surface: 'provider', title: 'Supplement Orders' },
+  },
+  {
     path: '/orders/new',
     name: 'order-new',
     component: () => import('./views/OrderBuilder.vue'),

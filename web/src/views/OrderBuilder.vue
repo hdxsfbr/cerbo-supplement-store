@@ -18,7 +18,7 @@ import {
 import { useLoginStore } from '../stores/login';
 import { useOrderDraftStore, type DraftLine } from '../stores/orderDraft';
 import { useSessionStore } from '../stores/session';
-import type { OrderListRow, Patient, Supplement } from '../types';
+import type { Patient, Supplement } from '../types';
 
 const props = defineProps<{ orderId?: number }>();
 const router = useRouter();
@@ -32,16 +32,14 @@ const chartPath = computed(() =>
 
 const patients = ref<Patient[]>([]);
 const supplements = ref<Supplement[]>([]);
-const recentOrders = ref<OrderListRow[]>([]);
 const selectedPatientId = ref<number | null>(null);
 const loadError = ref<string | null>(null);
 const copied = ref(false);
 
 async function loadReference(): Promise<void> {
-  const [p, s, o] = await Promise.all([api.patients(), api.supplements(), api.listOrders()]);
+  const [p, s] = await Promise.all([api.patients(), api.supplements()]);
   patients.value = p.patients;
   supplements.value = s.supplements;
-  recentOrders.value = o.orders;
   if (selectedPatientId.value === null && patients.value[0])
     selectedPatientId.value = patients.value[0].id;
 }
@@ -82,7 +80,6 @@ async function startOrder(): Promise<void> {
   if (selectedPatientId.value === null) return;
   const view = await draft.start(selectedPatientId.value);
   await router.replace({ name: 'order', params: { id: view.id } });
-  recentOrders.value = (await api.listOrders()).orders;
 }
 
 function addSupplement(s: Supplement): void {
@@ -131,8 +128,7 @@ function lineMarginPercentValue(line: DraftLine): string {
 
 async function sendOrder(): Promise<void> {
   if (timer) clearTimeout(timer);
-  const view = await draft.send();
-  if (view) recentOrders.value = (await api.listOrders()).orders;
+  await draft.send();
 }
 
 const copyFailed = ref(false);
@@ -194,6 +190,7 @@ function fmtDate(iso: string | null): string {
             <RouterLink v-if="chartPath" :to="chartPath" class="cerbo-link"
               >Back to chart</RouterLink
             >
+            <RouterLink to="/orders" class="cerbo-link">All orders</RouterLink>
             <RouterLink to="/orders/new" class="cerbo-link">New order</RouterLink>
           </div>
         </CerboPanel>
@@ -336,44 +333,6 @@ function fmtDate(iso: string | null): string {
             can be saved or sent.
           </p>
           <p v-if="draft.error" class="ob__error">{{ draft.error }}</p>
-        </CerboPanel>
-
-        <CerboPanel
-          title="Open Orders"
-          color="gray"
-          :footer="`${recentOrders.length} order(s) for ${session.providerName}`"
-        >
-          <table v-if="recentOrders.length" class="cerbo-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>#</th>
-                <th>Patient</th>
-                <th>Status</th>
-                <th class="cerbo-table__num">Items</th>
-                <th class="cerbo-table__num">Total</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="o in recentOrders" :key="o.id">
-                <td>{{ fmtDate(o.created_at) }}</td>
-                <td>{{ o.id }}</td>
-                <td>{{ o.patient_name }}</td>
-                <td>{{ statusLabel[o.status] }}</td>
-                <td class="cerbo-table__num">{{ o.item_count }}</td>
-                <td class="cerbo-table__num cerbo-money">{{ formatCents(o.total_cents) }}</td>
-                <td>
-                  <RouterLink :to="`/orders/${o.id}`" class="cerbo-link">open</RouterLink>
-                  <template v-if="o.status === 'paid'">
-                    ·
-                    <RouterLink :to="`/orders/${o.id}/audit`" class="cerbo-link">audit</RouterLink>
-                  </template>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p v-else class="cerbo-muted">No orders yet.</p>
         </CerboPanel>
       </div>
 
