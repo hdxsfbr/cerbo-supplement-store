@@ -21,6 +21,19 @@ const providerName = computed(() => login.account?.name ?? '');
 
 const patient = ref<Patient | null>(null);
 const firstName = computed(() => patient.value?.name.split(' ')[0] ?? '');
+// Demo portraits live at /chart/<first name>.jpg (web/public/chart/CREDITS.md); initial otherwise.
+const photoSrc = computed(() => `/chart/${firstName.value.toLowerCase()}.jpg`);
+const photoMissing = ref(false);
+const NICKNAMES: Record<string, string> = {
+  zeus: 'Jupiter',
+  hera: 'Juno',
+  demeter: 'Ceres',
+  apollo: 'Phoebus',
+  athena: 'Minerva',
+  poseidon: 'Neptune',
+};
+const nickname = computed(() => NICKNAMES[firstName.value.toLowerCase()] ?? null);
+watch(firstName, () => (photoMissing.value = false));
 // The provider's other patients stand in for Cerbo's Relationships panel (one seeded cast).
 const others = ref<Patient[]>([]);
 const providerShort = computed(() => {
@@ -315,12 +328,12 @@ const ledger = [
       <!-- ── Column 1: patient rail ─────────────────────────────────────── -->
       <div class="xc-col xc-col--rail">
         <div class="xc-photo">
-          <img v-if="patient?.id === 1" src="/chart/zeus.jpg" alt="" />
+          <img v-if="!photoMissing" :src="photoSrc" alt="" @error="photoMissing = true" />
           <div v-else class="xc-photo__blank">{{ firstName.slice(0, 1) }}</div>
           <div class="xc-photo__icons"><span></span><span>&#9998;</span></div>
           <div class="xc-photo__cap">
             <span class="xc-photo__sex">&#9792;</span>
-            <b>{{ patient?.name ?? '…' }}</b> <i v-if="patient?.id === 1">("Jupiter")</i><br />
+            <b>{{ patient?.name ?? '…' }}</b> <i v-if="nickname">("{{ nickname }}")</i><br />
             #{{ 20 + (patient?.id ?? 1) }} - <b style="font-size: 13px">54 Years</b> (01/08/1970)
           </div>
         </div>
