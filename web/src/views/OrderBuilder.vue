@@ -7,6 +7,7 @@ import MoneyInput from '../components/MoneyInput.vue';
 import SplitPreview from '../components/SplitPreview.vue';
 import SupplementSearch from '../components/SupplementSearch.vue';
 import { api } from '../api';
+import { copyText } from '../clipboard';
 import {
   PLATFORM_FEE_BPS,
   formatBps,
@@ -134,11 +135,13 @@ async function sendOrder(): Promise<void> {
   if (view) recentOrders.value = (await api.listOrders()).orders;
 }
 
+const copyFailed = ref(false);
 async function copyLink(): Promise<void> {
   if (!draft.order?.checkout_url) return;
-  await navigator.clipboard.writeText(draft.order.checkout_url);
-  copied.value = true;
-  setTimeout(() => (copied.value = false), 1500);
+  const ok = await copyText(draft.order.checkout_url);
+  copied.value = ok;
+  copyFailed.value = !ok; // show the link itself so it can be selected by hand
+  if (ok) setTimeout(() => (copied.value = false), 1500);
 }
 
 const statusLabel: Record<string, string> = {
@@ -428,6 +431,14 @@ function fmtDate(iso: string | null): string {
               <button class="cerbo-btn" @click="copyLink">
                 {{ copied ? 'Copied' : 'Copy payment link' }}
               </button>
+              <input
+                v-if="copyFailed"
+                class="cerbo-input ob__link-url"
+                :value="draft.order.checkout_url"
+                readonly
+                aria-label="Payment link"
+                @focus="($event.target as HTMLInputElement).select()"
+              />
               <RouterLink
                 v-if="draft.order.status === 'paid'"
                 :to="`/orders/${draft.order.id}/audit`"
@@ -467,6 +478,10 @@ function fmtDate(iso: string | null): string {
 }
 .ob__add {
   margin: 8px 0;
+}
+.ob__link-url {
+  flex: 1;
+  min-width: 260px;
 }
 .ob__patient {
   display: flex;
@@ -532,7 +547,7 @@ function fmtDate(iso: string | null): string {
 .ob__send-btn {
   width: 100%;
 }
-.ob__link {
+.ob__link-url {
   margin-top: 12px;
   border-top: 1px solid var(--cerbo-panel-border);
   padding-top: 8px;

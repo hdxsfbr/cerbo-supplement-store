@@ -21,6 +21,13 @@ const providerName = computed(() => login.account?.name ?? '');
 
 const patient = ref<Patient | null>(null);
 const firstName = computed(() => patient.value?.name.split(' ')[0] ?? '');
+// The provider's other patients stand in for Cerbo's Relationships panel (one seeded cast).
+const others = ref<Patient[]>([]);
+const providerShort = computed(() => {
+  const n = login.account?.name ?? '';
+  const parts = n.replace(/^Dr\.\s*/, '').split(' ');
+  return parts.length > 1 ? `${parts[0]![0]}. ${parts[parts.length - 1]}` : n;
+});
 const catalog = ref<Supplement[]>([]);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
@@ -33,6 +40,7 @@ async function loadChart(): Promise<void> {
     catalog.value = cat.supplements;
     const wanted = Number(route.query.patient);
     patient.value = pts.patients.find((x) => x.id === wanted) ?? pts.patients[0] ?? null;
+    others.value = pts.patients.filter((x) => x.id !== patient.value?.id);
     modal.value = null;
     tab.value = route.query.tab === 'supps' ? 'supps' : 'meds';
     selected.value = [];
@@ -214,13 +222,16 @@ function addToList(then: 'close' | 'another'): void {
   });
 }
 
-const encounters = [
-  { icon: 'plus', name: 'Functional Med Visit', who: 'M.W.', date: '08/07/2024' },
-  { icon: 'plus', name: 'Annual Wellness', who: 'M.W.', date: '08/06/2024' },
-  { icon: 'video', name: 'Follow Up', who: 'M.W.', date: '08/06/2024' },
-  { icon: 'plus', name: 'New Patient', who: 'M.W.', date: '08/06/2024' },
-  { icon: 'video', name: 'IV Injection', who: 'M.W.', date: '07/16/2024' },
-];
+const initials = computed(() => (login.account?.role === 'doctor' ? login.account.initials : ''));
+const encounters = computed(() =>
+  [
+    { icon: 'plus', name: 'Functional Med Visit', date: '08/07/2024' },
+    { icon: 'plus', name: 'Annual Wellness', date: '08/06/2024' },
+    { icon: 'video', name: 'Follow Up', date: '08/06/2024' },
+    { icon: 'plus', name: 'New Patient', date: '08/06/2024' },
+    { icon: 'video', name: 'IV Injection', date: '07/16/2024' },
+  ].map((e) => ({ ...e, who: initials.value })),
+);
 const meds = [
   { name: 'Levothroid - 0.025MG QD', from: '08/07/24', to: '09/06/24' },
   { name: 'Ozempic - 0.25 Or 0.5MG/DOSE QD (X2)', from: '08/07/24', to: '09/06/24', up: true },
@@ -321,12 +332,14 @@ const ledger = [
             </div>
             <div><b>Mobile:</b> &#128274; <a href="#">5552120155</a></div>
             <div><b>Work:</b></div>
-            <div><b>EM:</b> <a href="#">jdoe@cer.bo</a></div>
+            <div>
+              <b>EM:</b> <a href="#">{{ patient?.email ?? '—' }}</a>
+            </div>
             <div><b>Grp Account:</b> <a href="#">ABC Corp</a></div>
             <div>
               <b>Provider:</b>
               <select>
-                <option>M. Welby</option>
+                <option>{{ providerShort }}</option>
               </select>
             </div>
             <div style="display: flex; justify-content: space-between">
@@ -363,10 +376,14 @@ const ledger = [
           <div class="xc-panel__hdr xc-dark">Relationships</div>
           <div class="xc-panel__body xc-rel" style="font-size: 13px">
             <ul>
-              <li><a href="#">Hera Elaine Queen</a> - <i>emer. contact</i> &#128101;</li>
-              <li><a href="#">Demeter W Harvest</a> - <i>sibling</i> &#128101;</li>
-              <li><a href="#">John Doe</a> - <i>child</i> &#128101;</li>
-              <li><a href="#">Phoebe Buffay</a> - <i>dependent</i></li>
+              <li v-for="(o, i) in others" :key="o.id">
+                <RouterLink
+                  :to="{ name: 'experimental-chart', query: { patient: String(o.id) } }"
+                  >{{ o.name }}</RouterLink
+                >
+                - <i>{{ i === 0 ? 'emer. contact' : 'family' }}</i> &#128101;
+              </li>
+              <li v-if="others.length === 0"><i>No relationships on file</i></li>
             </ul>
           </div>
         </div>
@@ -397,7 +414,9 @@ const ledger = [
                 <span class="xc-row__date">{{ e.date }}</span>
               </div>
             </div>
-            <div class="xc-panel__foot">Last in person: 08/07/2024 (Seen by Dr. Marcus Welby)</div>
+            <div class="xc-panel__foot">
+              Last in person: 08/07/2024 (Seen by {{ providerName }})
+            </div>
           </div>
 
           <div class="xc-panel">
@@ -514,7 +533,7 @@ const ledger = [
             </div>
             <div class="xc-panel__foot">
               <template v-if="tab === 'meds'"
-                >Most Recent Update: August 7, 2024 by Dr. Marcus Welby</template
+                >Most Recent Update: August 7, 2024 by {{ providerName }}</template
               >
               <template v-else-if="lastUpdate"
                 >Most Recent Update: {{ lastUpdate }} by {{ providerName }}</template
@@ -625,7 +644,7 @@ const ledger = [
           <div class="xc-panel__body xc-admin">
             Get new credit card info next visit. Only visible to practice.
           </div>
-          <div class="xc-panel__foot">Last Updated by Dr. Marcus Welby - 07/02/2024</div>
+          <div class="xc-panel__foot">Last Updated by {{ providerName }} - 07/02/2024</div>
         </div>
         <div class="xc-panel">
           <div class="xc-panel__hdr xc-navy">Social/Family Notes</div>
@@ -633,7 +652,7 @@ const ledger = [
             Father: age: 82<br />history of high blood pressure<br />Mother: age: 81 this is a free
             text block
           </div>
-          <div class="xc-panel__foot">Last Updated by Dr. Marcus Welby - 03/13/2024</div>
+          <div class="xc-panel__foot">Last Updated by {{ providerName }} - 03/13/2024</div>
         </div>
         <div class="xc-panel">
           <div class="xc-panel__hdr xc-red">
