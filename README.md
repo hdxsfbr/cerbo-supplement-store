@@ -5,7 +5,9 @@ Cerbo's EHR, the patient pays through a stubbed checkout, and the system records
 every cent went: **COGS + provider margin + a 75 bps platform fee = what the patient paid**, as
 integer cents, in an append-only ledger whose invariants are enforced by the database itself.
 
+- **Repository (submitted):** https://labs.gauntletai.com/andrebatista/cerbo-supplement-store — GitLab, with CI and the Railway deploy; the brief's "GitHub" wording is read as "hosted git repository"
 - **Live demo:** https://app-production-500d.up.railway.app (Railway, single image + managed Postgres; `GET /api/health` reports migration status)
+- **Demo video:** `docs/demo/out/cerbo-supplement-store-demo-v1.1.mp4` (4:12; regenerable from `docs/demo/`) — link to the uploaded copy to be added
 - **Stack:** Vue 3 + TypeScript SPA · Fastify (TypeScript) REST API · PostgreSQL 16 · Docker
   (mirrors Cerbo's own stack — [DECISIONS.md #3](DECISIONS.md))
 - **Docs:** [Architecture + glossary](ARCHITECTURE.md) · [Key metrics](KEY_METRICS.md) · [Scaling analysis](SCALING.md) · [PRD](docs/PRD.md) ·
