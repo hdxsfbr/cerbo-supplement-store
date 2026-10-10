@@ -35,6 +35,7 @@ const audioDur = (id) =>
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ONLY = process.env.SCENES ? process.env.SCENES.split(',') : null;
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const want = (id) => !ONLY || ONLY.includes(id);
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: 'new',
@@ -291,8 +292,6 @@ await scene('s03_order', async () => {
   await sleep(500);
   await hoverEl('.ob__notes', 0.1, 0.2, 700);
 });
-
-const want = (id) => !ONLY || ONLY.includes(id);
 
 // s04 — patient: sign in, pay from Secure Messages (declined, then good), request a refill
 if (want('s04_portal_pay')) {
