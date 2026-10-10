@@ -398,3 +398,10 @@ Totals after the review pass: 20 + 31 unit, 51 integration, all green; CI green 
 - Removed end to end: migration 009 drops the column; the decrement at payment, the inventory
   routes, page, menu entry, "on hand" hints, types and their tests are gone. The demo narration
   and recording for the reporting scene were redone to match.
+
+### 2026-10-10 — INTEGRATION_PLAN.md
+
+- Andre asked for a plan to integrate into Cerbo's codebase before we have access, and whether
+  that would be too vague. Agreed structure: every statement is either verifiable from this repo
+  (seam method, table, route named) or an explicit assumption tied to a numbered question for
+  the Cerbo team. The seam signatures and table list were pulled from the code, not retyped.

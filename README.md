@@ -10,7 +10,7 @@ integer cents, in an append-only ledger whose invariants are enforced by the dat
 - **Demo video:** `docs/demo/out/cerbo-supplement-store-demo-v1.1.mp4` (4:17; regenerable from `docs/demo/`) — link to the uploaded copy to be added
 - **Stack:** Vue 3 + TypeScript SPA · Fastify (TypeScript) REST API · PostgreSQL 16 · Docker
   (mirrors Cerbo's own stack — [DECISIONS.md #3](DECISIONS.md))
-- **Docs:** [Architecture + glossary](ARCHITECTURE.md) · [Key metrics](KEY_METRICS.md) · [Scaling analysis](SCALING.md) · [PRD](docs/PRD.md) ·
+- **Docs:** [Architecture + glossary](ARCHITECTURE.md) · [Key metrics](KEY_METRICS.md) · [Scaling analysis](SCALING.md) · [Integration plan](INTEGRATION_PLAN.md) · [PRD](docs/PRD.md) ·
   [Decision log](DECISIONS.md) · [AI usage log](AI_USAGE.md) ·
   [Spec, plan, data model, API contracts, tasks](specs/001-supplement-store/)
 
