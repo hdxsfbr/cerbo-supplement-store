@@ -236,7 +236,7 @@ Every provider page (chart and store) renders under one shared Cerbo-style heade
 sales report, the patient search (on the chart only) opens that patient's chart, and the user chip is
 the sign-out menu. Provider pages require a signed-in doctor.
 
-The root `/` is a demo sign-in with two providers and two patients (hard-coded in
+The root `/` is a demo sign-in with the two seeded providers and six seeded patients (hard-coded in
 `web/src/stores/login.ts`). A provider lands on the chart and picks the patient from the
 top-right dropdown; a patient lands on `/experimental-portal`, a static replica of Cerbo's
 patient portal. The store's own pages (`/orders/new`, `/dashboard`, `/inventory`,

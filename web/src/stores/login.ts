@@ -1,5 +1,5 @@
-// Demo login — who is signed in for the experimental chart / portal surfaces. Two hard-coded
-// doctors and two hard-coded patients (all from 003_seed.sql). A doctor login sets the acting
+// Demo login — who is signed in: the two seeded doctors and the six seeded patients
+// (003_seed.sql). A doctor login sets the acting
 // provider on the identity seam; a patient login carries the patient's id for the portal.
 // Persisted so a reload keeps the session. Not an auth system: in Cerbo this is the EHR login.
 
@@ -20,12 +20,35 @@ export const ACCOUNTS: Account[] = [
     email: 'anderson@demo.cer.bo',
     initials: 'S.A.',
   },
+  // every seeded patient (003_seed.sql), so the cast is the same on the chart, the store and here
   { role: 'patient', id: 1, name: 'Zeus King', email: 'zeus@olympus.example', provider_id: 1 },
+  {
+    role: 'patient',
+    id: 2,
+    name: 'Hera Elaine Queen',
+    email: 'hera@olympus.example',
+    provider_id: 1,
+  },
+  {
+    role: 'patient',
+    id: 3,
+    name: 'Demeter W Harvest',
+    email: 'demeter@olympus.example',
+    provider_id: 1,
+  },
   {
     role: 'patient',
     id: 4,
     name: 'Apollo Ray Sun',
     email: 'apollo@olympus.example',
+    provider_id: 2,
+  },
+  { role: 'patient', id: 5, name: 'Athena Wise', email: 'athena@olympus.example', provider_id: 2 },
+  {
+    role: 'patient',
+    id: 6,
+    name: 'Poseidon C. Waters',
+    email: 'poseidon@olympus.example',
     provider_id: 2,
   },
 ];
